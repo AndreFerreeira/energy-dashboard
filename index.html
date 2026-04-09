@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Energy Optimization â Planta Indaiatuba</title>
+<title>Energy Optimization — Planta Indaiatuba</title>
 <style>
 :root {
   --bg:#06090f; --bg2:#0a0e17; --card:#111827; --card2:#0f1729;
@@ -23,3 +23,1239 @@ body { background:var(--bg); color:var(--text); font-family:-apple-system,BlinkM
 .header-title { font-size:15px; font-weight:700; letter-spacing:1px; }
 .header-badge { font-size:10px; color:var(--dim); margin-left:8px; padding:2px 8px; background:rgba(59,130,246,0.1); border-radius:4px; }
 .header-right { display:flex; gap:16px; align-items:center; font-size:9px; color:var(--dim); }
+.header-date { background:var(--card); padding:3px 10px; border-radius:4px; color:var(--muted); }
+
+/* TABS */
+.tabs { border-bottom:1px solid var(--border); padding:0 28px; display:flex; background:var(--bg2); overflow-x:auto; }
+.tab-btn { padding:10px 20px; font-size:12px; font-weight:400; color:var(--dim); background:none; border:none; cursor:pointer; border-bottom:2px solid transparent; transition:all .2s; font-family:inherit; white-space:nowrap; }
+.tab-btn.active { color:var(--accent); font-weight:600; border-bottom-color:var(--accent); }
+.tab-btn:hover { color:var(--muted); }
+
+/* CONTENT */
+.content { padding:20px 28px; max-width:1200px; margin:0 auto; }
+
+/* KPI GRID */
+.kpi-grid { display:grid; grid-template-columns:repeat(5,1fr); gap:12px; margin-bottom:18px; }
+.kpi { background:var(--card); border-radius:10px; padding:14px 16px; position:relative; overflow:hidden; border:1px solid var(--border); }
+.kpi-bar { position:absolute; top:0; left:0; right:0; height:2px; }
+.kpi-label { font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:0.5px; }
+.kpi-value { font-size:22px; font-weight:700; margin-top:4px; }
+.kpi-sub { font-size:9px; color:var(--dim); margin-top:2px; }
+
+/* CARDS */
+.card { background:var(--card); border-radius:10px; padding:18px; border:1px solid var(--border); margin-bottom:14px; }
+.card-title { font-size:11px; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:12px; }
+
+/* EQUIPMENT GRID */
+.equip-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
+.section-title { font-size:12px; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px; padding-left:4px; }
+
+/* EQUIPMENT CARD */
+.equip-card { background:var(--card); border-radius:10px; padding:14px 16px; border:1px solid var(--border); cursor:pointer; position:relative; overflow:hidden; transition:all .15s; border-left:3px solid var(--dim); }
+.equip-card:hover { border-color:var(--accent); background:var(--card2); }
+.equip-header { display:flex; justify-content:space-between; align-items:flex-start; }
+.equip-id { font-size:11px; font-weight:700; color:var(--accent); }
+.equip-status { font-size:9px; font-weight:600; padding:1px 6px; border-radius:3px; }
+.equip-name { font-size:12px; font-weight:600; color:var(--text); margin:2px 0; }
+.equip-area { font-size:9px; color:var(--dim); }
+.equip-value { font-size:18px; font-weight:700; line-height:1; text-align:right; }
+.equip-unit { font-size:9px; color:var(--dim); margin-left:2px; }
+.equip-desvio { font-size:11px; font-weight:600; margin-top:2px; text-align:right; }
+.equip-footer { display:flex; justify-content:space-between; margin-top:8px; padding-top:6px; border-top:1px solid rgba(30,41,59,0.3); font-size:9px; }
+.equip-footer-left { color:var(--dim); }
+.equip-footer-right { color:var(--accent); font-weight:600; }
+
+/* TABLE */
+table { width:100%; border-collapse:collapse; }
+th { padding:6px 8px; color:var(--dim); font-weight:500; font-size:9px; text-transform:uppercase; letter-spacing:0.5px; border-bottom:1px solid var(--border); }
+td { padding:7px 8px; font-size:11px; border-bottom:1px solid rgba(30,41,59,0.15); }
+tr:hover { background:rgba(59,130,246,0.06); }
+tr.clickable { cursor:pointer; }
+
+/* MODAL */
+.modal-overlay { position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.75); backdrop-filter:blur(8px); z-index:1000; display:flex; justify-content:center; align-items:flex-start; padding:30px 20px; overflow:auto; }
+.modal { background:linear-gradient(135deg,rgba(17,24,39,0.97),rgba(15,23,41,0.95)); backdrop-filter:blur(12px); border-radius:16px; border:1px solid var(--border2); max-width:900px; width:100%; color:var(--text); position:relative; }
+.modal-header { padding:20px 24px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:flex-start; }
+.modal-close { background:none; border:none; color:var(--dim); font-size:20px; cursor:pointer; padding:4px 8px; line-height:1; }
+.modal-close:hover { color:var(--text); }
+.modal-kpis { display:flex; gap:1px; background:var(--border); }
+.modal-kpi { flex:1; background:var(--card2); padding:12px 16px; text-align:center; }
+.modal-kpi-label { font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:0.5px; }
+.modal-kpi-value { font-size:22px; font-weight:700; margin-top:4px; }
+.modal-body { padding:16px 24px 20px; }
+
+/* TAG SECTION */
+.tag-section-title { font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:1px; margin-bottom:8px; display:flex; align-items:center; gap:6px; }
+
+/* STATUS CHIPS */
+.status-chips { display:flex; flex-wrap:wrap; gap:8px; }
+.status-chip { background:var(--bg2); border-radius:8px; padding:8px 14px; border:1px solid var(--border); display:flex; align-items:center; gap:8px; }
+.status-dot { width:8px; height:8px; border-radius:50%; }
+.status-chip-label { font-size:10px; color:var(--muted); }
+.status-chip-value { font-size:11px; font-weight:600; }
+
+/* ANALYSIS BOX */
+.analysis-box { background:var(--bg2); border-radius:10px; padding:16px; border:1px solid var(--border); margin-bottom:16px; }
+.analysis-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; }
+.analysis-item { background:var(--card); border-radius:8px; padding:12px; text-align:center; }
+.analysis-label { font-size:9px; color:var(--dim); text-transform:uppercase; }
+.analysis-value { font-size:18px; font-weight:700; margin-top:4px; }
+.analysis-sub { font-size:9px; color:var(--dim); }
+.diagnosis { margin-top:12px; padding:10px 14px; border-radius:8px; border-left:3px solid; font-size:11px; line-height:1.5; }
+
+/* ALERT CARD */
+.alert-card { background:var(--card); border-radius:10px; padding:16px; border-left:4px solid; cursor:pointer; margin-bottom:10px; transition:background .15s; }
+.alert-card:hover { background:var(--card2); }
+
+/* REC CARD */
+.rec-card { background:var(--card); border-radius:8px; padding:14px; border-left:3px solid; display:flex; gap:12px; align-items:center; border:1px solid var(--border); margin-bottom:8px; }
+.rec-pri { font-size:10px; font-weight:700; min-width:44px; }
+.rec-text { font-size:11px; color:var(--text); line-height:1.4; }
+
+/* CHART BAR */
+.bar-chart { display:flex; flex-direction:column; gap:6px; }
+.bar-row { display:flex; align-items:center; gap:10px; }
+.bar-label { font-size:10px; color:var(--muted); width:100px; text-align:right; flex-shrink:0; }
+.bar-track { flex:1; height:20px; background:var(--bg); border-radius:4px; position:relative; overflow:hidden; }
+.bar-fill { height:100%; border-radius:4px; transition:width .5s; position:absolute; }
+.bar-nom { height:100%; width:2px; background:var(--accent); position:absolute; top:0; opacity:0.6; }
+.bar-val-label { font-size:10px; width:55px; text-align:right; flex-shrink:0; }
+
+/* CSV IMPORT */
+.import-zone { border:2px dashed var(--border2); border-radius:12px; padding:20px; text-align:center; cursor:pointer; transition:all .2s; margin-bottom:14px; }
+.import-zone:hover { border-color:var(--accent); background:rgba(59,130,246,0.05); }
+.import-zone.dragover { border-color:var(--green); background:rgba(16,185,129,0.08); }
+.import-btn { background:var(--accent); color:#fff; border:none; padding:8px 20px; border-radius:6px; font-size:12px; font-weight:600; cursor:pointer; margin-top:8px; }
+.import-btn:hover { background:#2563eb; }
+.import-info { font-size:10px; color:var(--dim); margin-top:6px; }
+.import-status { font-size:11px; margin-top:8px; padding:6px 12px; border-radius:6px; display:inline-block; }
+
+/* RANGE VIS */
+.range-vis { display:flex; flex-direction:column; gap:8px; padding-top:8px; }
+.range-row { display:flex; align-items:center; gap:10px; }
+.range-label { font-size:10px; color:var(--muted); width:90px; text-align:right; }
+.range-track { flex:1; height:20px; background:var(--bg); border-radius:4px; position:relative; }
+.range-bar { position:absolute; height:100%; border-radius:4px; }
+.range-marker { position:absolute; top:-2px; width:2px; height:24px; background:var(--text); border-radius:1px; }
+.range-value { font-size:10px; width:50px; text-align:right; }
+
+/* GAUGE & TANK */
+.gauge { text-align:center; flex:1; }
+.gauge-tank { width:70px; background:var(--bg); border-radius:8px; height:160px; position:relative; overflow:hidden; margin:0 auto; border:1px solid var(--border); }
+.gauge-fill { position:absolute; bottom:0; width:100%; border-radius:0 0 8px 8px; transition:height .5s; }
+.gauge-label { font-size:11px; color:var(--muted); margin-bottom:8px; }
+.gauge-value { font-size:20px; font-weight:700; margin-top:8px; }
+.gauge-sub { font-size:10px; color:var(--dim); }
+.grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+.grid-3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:14px; }
+.temp-display { text-align:center; padding:20px; }
+.temp-value { font-size:48px; font-weight:700; }
+.temp-sub { font-size:12px; color:var(--muted); margin-top:4px; }
+
+@media (max-width:900px) {
+  .kpi-grid { grid-template-columns:repeat(2,1fr); }
+  .equip-grid { grid-template-columns:repeat(2,1fr); }
+  .analysis-grid { grid-template-columns:1fr; }
+  .grid-2 { grid-template-columns:1fr; }
+  .grid-3 { grid-template-columns:1fr; }
+}
+@media (max-width:600px) {
+  .kpi-grid { grid-template-columns:1fr; }
+  .equip-grid { grid-template-columns:1fr; }
+  .content { padding:12px 14px; }
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <div class="live-dot"></div>
+    <span class="header-title">ENERGY OPTIMIZATION</span>
+    <span class="header-badge">Planta Indaiatuba</span>
+  </div>
+  <div class="header-right">
+    <span>Kusto/ADX &middot; Common2</span>
+    <span class="header-date" id="headerDate">08/04/2026 22:42</span>
+  </div>
+</div>
+
+<div class="tabs">
+  <button class="tab-btn active" data-tab="overview">Visão Geral</button>
+  <button class="tab-btn" data-tab="caldeira">Caldeira</button>
+  <button class="tab-btn" data-tab="ventiladores">Ventiladores</button>
+  <button class="tab-btn" data-tab="bombas">Bombas</button>
+  <button class="tab-btn" data-tab="analysis">Nominal vs Atual</button>
+  <button class="tab-btn" data-tab="alerts">Alertas</button>
+  <button class="tab-btn" data-tab="import">Importar CSV</button>
+</div>
+
+<div class="content" id="content"></div>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modalOverlay" style="display:none" onclick="closeModal()">
+  <div class="modal" id="modalContent" onclick="event.stopPropagation()"></div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════
+// DATA ENGINE — All real data from Kusto/ADX, 08/04/2026
+// ═══════════════════════════════════════════════════════════════════
+
+const EQUIPMENT = {
+  F1319:{id:"F1319",name:"Ventilador Booster 01A",area:"Caldeira Biomassa",type:"Ventilador",plc:"ControlLogixBiomassa",status:"Operando",nominal:{corrente:200,speed:100},tags:[
+    {var:"Corrente Atual do Motor",value:149.70,min:100.40,max:283.14,std:57.33,unit:"A",n:469,type:"analog"},
+    {var:"Leitura Corrente Drive Convertida",value:149.70,min:100.40,max:283.14,std:57.34,unit:"A",n:469,type:"analog"},
+    {var:"Leitura Corrente Drive (raw)",value:2452.80,min:1644,max:4606,std:934.73,unit:"raw",n:468,type:"raw"},
+    {var:"Setpoint Velocidade Motor",value:89.16,min:40.0,max:100.0,std:8.09,unit:"%",n:173,type:"analog"},
+    {var:"Setpoint Automático (Malha)",value:89.43,min:60.0,max:100.0,std:6.86,unit:"%",n:174,type:"analog"},
+    {var:"Feedback Velocidade",value:47.50,min:24.0,max:55.24,std:8.99,unit:"Hz",n:201,type:"analog"},
+    {var:"Velocidade Drive Convertida",value:47.50,min:24.0,max:55.24,std:8.99,unit:"Hz",n:201,type:"analog"},
+    {var:"Aux Leitura Feedback (raw)",value:12983.65,min:6554,max:15081,std:2450.07,unit:"raw",n:202,type:"raw"},
+    {var:"Status Motor",value:3,min:3,max:3,std:0,unit:"",n:4,type:"status"},
+    {var:"Indicação Ligado",value:1,min:1,max:1,std:0,unit:"",n:4,type:"bool"},
+    {var:"Interlock Geral",value:1,min:1,max:1,std:0,unit:"",n:4,type:"bool"},
+    {var:"Falha Acionamento",value:0,min:0,max:0,std:0,unit:"",n:4,type:"bool"},
+  ]},
+  F1320:{id:"F1320",name:"Ventilador Booster 01B",area:"Caldeira Biomassa",type:"Ventilador",plc:"ControlLogixBiomassa",status:"Operando",nominal:{corrente:200,speed:100},tags:[
+    {var:"Corrente Atual do Motor",value:145.27,min:99.12,max:272.58,std:53.83,unit:"A",n:469,type:"analog"},
+    {var:"Leitura Corrente Drive Convertida",value:145.26,min:99.12,max:272.58,std:53.81,unit:"A",n:469,type:"analog"},
+    {var:"Leitura Corrente Drive (raw)",value:2389.16,min:1622,max:4505,std:883.12,unit:"raw",n:468,type:"raw"},
+    {var:"Setpoint Velocidade Motor",value:89.16,min:40.0,max:100.0,std:8.09,unit:"%",n:173,type:"analog"},
+    {var:"Feedback Velocidade",value:47.50,min:24.0,max:55.24,std:8.99,unit:"Hz",n:201,type:"analog"},
+    {var:"Status Motor",value:3,min:3,max:3,std:0,unit:"",n:4,type:"status"},
+    {var:"Indicação Ligado",value:1,min:1,max:1,std:0,unit:"",n:4,type:"bool"},
+    {var:"Falha Acionamento",value:0,min:0,max:0,std:0,unit:"",n:4,type:"bool"},
+  ]},
+  F1317:{id:"F1317",name:"Ventilador Booster 02A",area:"Caldeira Biomassa",type:"Ventilador",plc:"ControlLogixBiomassa",status:"Operando",nominal:{corrente:200,speed:100},tags:[
+    {var:"Corrente Atual do Motor",value:179.22,min:113.28,max:270.08,std:36.76,unit:"A",n:475,type:"analog"},
+    {var:"Leitura Corrente Drive Convertida",value:179.21,min:113.28,max:270.08,std:36.79,unit:"A",n:475,type:"analog"},
+    {var:"Leitura Corrente Drive (raw)",value:2934.49,min:1851,max:4419,std:603.02,unit:"raw",n:474,type:"raw"},
+    {var:"Setpoint Velocidade Motor",value:71.55,min:60.68,max:88.33,std:8.24,unit:"%",n:466,type:"analog"},
+    {var:"Feedback Velocidade",value:42.93,min:38.27,max:51.97,std:4.93,unit:"Hz",n:473,type:"analog"},
+    {var:"Status Motor",value:3,min:3,max:3,std:0,unit:"",n:4,type:"status"},
+    {var:"Indicação Ligado",value:1,min:1,max:1,std:0,unit:"",n:4,type:"bool"},
+    {var:"Falha Acionamento",value:0,min:0,max:0,std:0,unit:"",n:4,type:"bool"},
+  ]},
+  F1318:{id:"F1318",name:"Ventilador Booster 02B",area:"Caldeira Biomassa",type:"Ventilador",plc:"ControlLogixBiomassa",status:"Operando",nominal:{corrente:200,speed:100},tags:[
+    {var:"Corrente Atual do Motor",value:175.93,min:112.43,max:262.08,std:35.88,unit:"A",n:475,type:"analog"},
+    {var:"Leitura Corrente Drive Convertida",value:176.18,min:112.43,max:262.08,std:35.81,unit:"A",n:474,type:"analog"},
+    {var:"Leitura Corrente Drive (raw)",value:2888.48,min:1826,max:4344,std:591.35,unit:"raw",n:475,type:"raw"},
+    {var:"Setpoint Velocidade Motor",value:71.62,min:60.68,max:88.33,std:8.31,unit:"%",n:475,type:"analog"},
+    {var:"Feedback Velocidade",value:42.94,min:38.27,max:51.97,std:4.94,unit:"Hz",n:475,type:"analog"},
+    {var:"Status Motor",value:3,min:3,max:3,std:0,unit:"",n:4,type:"status"},
+    {var:"Falha Acionamento",value:0,min:0,max:0,std:0,unit:"",n:4,type:"bool"},
+  ]},
+  F1333:{id:"F1333",name:"Ventilador Primário",area:"Caldeira Biomassa",type:"Ventilador",plc:"ControlLogixBiomassa",status:"Operando",nominal:{corrente:150,speed:100},tags:[
+    {var:"Corrente Atual do Motor",value:112.18,min:94.28,max:151.16,std:19.52,unit:"A",n:475,type:"analog"},
+    {var:"Leitura Corrente Drive (raw)",value:6552.18,min:5517,max:8842,std:1144.23,unit:"raw",n:475,type:"raw"},
+    {var:"Setpoint Velocidade Motor",value:56.69,min:42.10,max:81.48,std:15.36,unit:"%",n:476,type:"analog"},
+    {var:"Feedback Velocidade",value:34.07,min:25.25,max:48.96,std:9.23,unit:"Hz",n:470,type:"analog"},
+    {var:"Status Motor",value:3,min:3,max:3,std:0,unit:"",n:4,type:"status"},
+    {var:"Falha Acionamento",value:0,min:0,max:0,std:0,unit:"",n:3,type:"bool"},
+  ]},
+  F1334:{id:"F1334",name:"Ventilador Diluição 01",area:"Caldeira Biomassa",type:"Ventilador",plc:"ControlLogixBiomassa",status:"Operando",nominal:{corrente:130,speed:100},tags:[
+    {var:"Corrente Atual do Motor",value:109.76,min:108.19,max:114.61,std:1.27,unit:"A",n:465,type:"analog"},
+    {var:"Leitura Corrente Drive (raw)",value:5935.89,min:5846,max:6198,std:69.51,unit:"raw",n:466,type:"raw"},
+    {var:"Setpoint Velocidade Motor",value:33.74,min:25.64,max:47.52,std:8.53,unit:"%",n:476,type:"analog"},
+    {var:"Feedback Velocidade",value:20.28,min:15.38,max:28.54,std:5.12,unit:"Hz",n:468,type:"analog"},
+    {var:"Status Motor",value:3,min:3,max:3,std:0,unit:"",n:4,type:"status"},
+    {var:"Falha Acionamento",value:0,min:0,max:0,std:0,unit:"",n:3,type:"bool"},
+  ]},
+  F1335:{id:"F1335",name:"Ventilador Diluição 02B",area:"Caldeira Biomassa",type:"Ventilador",plc:"ControlLogixBiomassa",status:"Operando",nominal:{corrente:130,speed:100},tags:[
+    {var:"Corrente Atual do Motor",value:17.14,min:16.48,max:20.67,std:0.65,unit:"A",n:474,type:"analog"},
+    {var:"Leitura Corrente Drive (raw)",value:943.14,min:907,max:1139,std:35.87,unit:"raw",n:474,type:"raw"},
+    {var:"Setpoint Velocidade Motor",value:37.63,min:28.6,max:52.92,std:9.48,unit:"%",n:473,type:"analog"},
+    {var:"Feedback Velocidade",value:22.58,min:17.16,max:31.76,std:5.69,unit:"Hz",n:472,type:"analog"},
+    {var:"Status Motor",value:3,min:3,max:3,std:0,unit:"",n:4,type:"status"},
+    {var:"Falha Acionamento",value:0,min:0,max:0,std:0,unit:"",n:4,type:"bool"},
+  ]},
+  TT13640:{id:"TT13640",name:"Temperatura Fornalha 01",area:"Caldeira Biomassa",type:"Temperatura",plc:"ControlLogixBiomassa",status:"Operando",nominal:{temperatura:950},tags:[
+    {var:"Valor Saída Processo",value:970.58,min:921.15,max:1076.62,std:35.68,unit:"°C",n:397,type:"analog"},
+    {var:"Corrente Bits Cartão",value:14.87,min:14.31,max:15.89,std:0.36,unit:"mA",n:395,type:"analog"},
+    {var:"Entrada Cartão (raw)",value:14866.08,min:14312,max:15891,std:361.85,unit:"raw",n:395,type:"raw"},
+    {var:"Habilita Sensor",value:1,min:1,max:1,std:0,unit:"",n:3,type:"bool"},
+    {var:"Sensor Inoperante",value:0,min:0,max:0,std:0,unit:"",n:3,type:"bool"},
+  ]},
+  PT13570:{id:"PT13570",name:"Pressão Fornalha",area:"Caldeira Biomassa",type:"Pressão",plc:"ControlLogixBiomassa",status:"Operando",nominal:{pressao:-10},tags:[
+    {var:"Valor Saída Processo",value:-9.27,min:-13.96,max:-7.66,std:1.51,unit:"mmH₂O",n:397,type:"analog"},
+    {var:"Corrente Bits Cartão",value:11.26,min:10.87,max:11.52,std:0.12,unit:"mA",n:395,type:"analog"},
+    {var:"Entrada Cartão (raw)",value:11263.07,min:10873,max:11516,std:124.02,unit:"raw",n:395,type:"raw"},
+  ]},
+  PT13571:{id:"PT13571",name:"Pressão Saída Gases",area:"Caldeira Biomassa",type:"Pressão",plc:"ControlLogixBiomassa",status:"Operando",nominal:{pressao:-15},tags:[
+    {var:"Valor Saída Processo",value:-14.79,min:-28.99,max:-7.76,std:3.73,unit:"mmH₂O",n:397,type:"analog"},
+    {var:"Corrente Bits Cartão",value:10.82,min:9.68,max:11.39,std:0.30,unit:"mA",n:395,type:"analog"},
+    {var:"Entrada Cartão (raw)",value:10819.42,min:9680,max:11388,std:298.82,unit:"raw",n:395,type:"raw"},
+  ]},
+  PT13572:{id:"PT13572",name:"Pressão Filtro 01",area:"Caldeira Biomassa",type:"Pressão",plc:"ControlLogixBiomassa",status:"Operando",nominal:{pressao:-80},tags:[
+    {var:"Valor Saída Processo",value:-82.37,min:-152.51,max:-45.67,std:22.96,unit:"mmH₂O",n:397,type:"analog"},
+    {var:"Corrente Bits Cartão",value:10.68,min:9.12,max:11.50,std:0.51,unit:"mA",n:395,type:"analog"},
+  ]},
+  PT13574:{id:"PT13574",name:"Pressão Duto Processo",area:"Caldeira Biomassa",type:"Pressão",plc:"ControlLogixBiomassa",status:"Operando",nominal:{pressao:25},tags:[
+    {var:"Valor Saída Processo",value:27.30,min:17.79,max:36.48,std:5.66,unit:"mmH₂O",n:397,type:"analog"},
+  ]},
+  PT13578:{id:"PT13578",name:"Pressão Sulfonação",area:"Caldeira Biomassa",type:"Pressão",plc:"ControlLogixBiomassa",status:"Operando",nominal:{pressao:-12},tags:[
+    {var:"Valor Saída Processo",value:-12.84,min:-20.11,max:-4.56,std:3.14,unit:"mmH₂O",n:397,type:"analog"},
+  ]},
+  FT13640:{id:"FT13640",name:"Vazão Vapor Torre 1",area:"Caldeira Biomassa",type:"Vazão",plc:"ControlLogixBiomassa",status:"Operando",nominal:{vazao:100},tags:[
+    {var:"Valor Saída Processo",value:84.95,min:0,max:111.20,std:18.10,unit:"T/H",n:397,type:"analog"},
+    {var:"Corrente Bits Cartão",value:14.80,min:4.00,max:17.78,std:2.60,unit:"mA",n:395,type:"analog"},
+  ]},
+  FT13650:{id:"FT13650",name:"Vazão Vapor Torre 2",area:"Caldeira Biomassa",type:"Vazão",plc:"ControlLogixBiomassa",status:"Operando",nominal:{vazao:105},tags:[
+    {var:"Valor Saída Processo",value:103.70,min:95.30,max:107.70,std:2.68,unit:"T/H",n:397,type:"analog"},
+    {var:"Corrente Bits Cartão",value:17.27,min:16.21,max:17.77,std:0.34,unit:"mA",n:395,type:"analog"},
+  ]},
+  VT13190:{id:"VT13190",name:"Vibração Booster 01A",area:"Caldeira Biomassa",type:"Vibração",plc:"ControlLogixBiomassa",status:"Sem Conversão",nominal:{},tags:[
+    {var:"Entrada Cartão (raw)",value:5413.18,min:4080,max:8562,std:973.07,unit:"raw",n:395,type:"raw"},
+    {var:"Corrente Bits Cartão",value:5.41,min:4.08,max:8.56,std:0.97,unit:"mA",n:395,type:"analog"},
+  ]},
+  VT13200:{id:"VT13200",name:"Vibração Booster 01B",area:"Caldeira Biomassa",type:"Vibração",plc:"ControlLogixBiomassa",status:"Sem Conversão",nominal:{},tags:[
+    {var:"Entrada Cartão (raw)",value:6893.13,min:4191,max:11809,std:1646.96,unit:"raw",n:395,type:"raw"},
+    {var:"Corrente Bits Cartão",value:6.89,min:4.19,max:11.81,std:1.65,unit:"mA",n:395,type:"analog"},
+  ]},
+  BC1302:{id:"BC1302",name:"Correia Transportadora 01",area:"Caldeira Biomassa",type:"Correia",plc:"ControlLogixBiomassa",status:"Operando",nominal:{corrente:6,speed:100},tags:[
+    {var:"Corrente Atual Motor",value:4.70,min:0,max:5.25,std:0.45,unit:"A",n:252,type:"analog"},
+    {var:"Setpoint Velocidade Motor",value:76.08,min:70,max:82,std:6.03,unit:"%",n:65,type:"analog"},
+    {var:"Feedback Velocidade",value:43.82,min:0,max:49.2,std:6.99,unit:"Hz",n:155,type:"analog"},
+    {var:"Leitura Corrente Drive (raw)",value:76.96,min:0,max:86,std:7.57,unit:"raw",n:240,type:"raw"},
+    {var:"Status Motor",value:1.8,min:0,max:3,std:1.64,unit:"",n:5,type:"status"},
+  ]},
+  BC1303:{id:"BC1303",name:"Correia Transportadora 02",area:"Caldeira Biomassa",type:"Correia",plc:"ControlLogixBiomassa",status:"Operando",nominal:{corrente:8,speed:100},tags:[
+    {var:"Corrente Atual Motor",value:6.45,min:0,max:9.64,std:1.09,unit:"A",n:292,type:"analog"},
+    {var:"Setpoint Velocidade Motor",value:87.68,min:80,max:96,std:8.03,unit:"%",n:69,type:"analog"},
+    {var:"Feedback Velocidade",value:49.57,min:0,max:57.33,std:8.81,unit:"Hz",n:161,type:"analog"},
+    {var:"Leitura Corrente Drive (raw)",value:105.66,min:0,max:152,std:17.22,unit:"raw",n:286,type:"raw"},
+  ]},
+  VP1443:{id:"VP1443",name:"Bomba de Vácuo",area:"Spray Dryer",type:"Bomba",plc:"ControlLogixT1",status:"Operando",nominal:{corrente:18},tags:[
+    {var:"Corrente E3 Convertida",value:17.24,min:16.75,max:17.75,std:0.22,unit:"A",n:238,type:"analog"},
+    {var:"Setpoint Velocidade Motor",value:25.0,min:25,max:25,std:0,unit:"%",n:3,type:"analog"},
+    {var:"Status Motor",value:3,min:3,max:3,std:0,unit:"",n:4,type:"status"},
+  ]},
+  P455:{id:"P455",name:"Bomba de Efluente",area:"Spray Dryer",type:"Bomba",plc:"ControlLogixT1",status:"Intermitente",nominal:{corrente:10},tags:[
+    {var:"Corrente E3 Convertida",value:7.19,min:0,max:8.5,std:2.82,unit:"A",n:31,type:"analog"},
+    {var:"Setpoint Velocidade Motor",value:25.0,min:25,max:25,std:0,unit:"%",n:3,type:"analog"},
+    {var:"Status Motor",value:0.6,min:0,max:3,std:1.34,unit:"",n:5,type:"status"},
+  ]},
+  P441B:{id:"P441B",name:"Bomba Transferência B (T1)",area:"Spray Dryer T1",type:"Bomba",plc:"ControlLogixT1",status:"Operando",nominal:{rpm:80},tags:[
+    {var:"RPM Bomba",value:76.55,min:37.96,max:130.57,std:30.37,unit:"Hz",n:471,type:"analog"},
+    {var:"Velocidade Bomba",value:22.85,min:11.31,max:38.78,std:9.05,unit:"%",n:94,type:"analog"},
+    {var:"Status Motor",value:3,min:3,max:3,std:0,unit:"",n:4,type:"status"},
+  ]},
+  P444B:{id:"P444B",name:"Bomba Baixa Pressão B (T1)",area:"Spray Dryer T1",type:"Bomba",plc:"ControlLogixT1",status:"Operando",nominal:{rpm:80},tags:[
+    {var:"RPM Bomba",value:75.71,min:38.97,max:115.49,std:24.16,unit:"Hz",n:465,type:"analog"},
+    {var:"Velocidade Bomba",value:27.84,min:14.35,max:42.51,std:8.91,unit:"%",n:466,type:"analog"},
+    {var:"Status Motor",value:3,min:3,max:3,std:0,unit:"",n:4,type:"status"},
+  ]},
+  P1442A:{id:"P1442A",name:"Bomba Transferência A (T2)",area:"Spray Dryer T2",type:"Bomba",plc:"ControlLogixT2",status:"Operando",nominal:{rpm:65},tags:[
+    {var:"RPM Bomba",value:62.95,min:59.49,max:66.70,std:1.86,unit:"Hz",n:393,type:"analog"},
+    {var:"Velocidade Bomba",value:62.91,min:59.70,max:66.08,std:1.86,unit:"%",n:94,type:"analog"},
+    {var:"Status Motor",value:3,min:3,max:3,std:0,unit:"",n:4,type:"status"},
+  ]},
+  P1446A:{id:"P1446A",name:"Bomba Baixa Pressão A (T2)",area:"Spray Dryer T2",type:"Bomba",plc:"ControlLogixT2",status:"Operando",nominal:{rpm:20},tags:[
+    {var:"RPM Bomba",value:18.76,min:13.08,max:23.91,std:2.83,unit:"Hz",n:394,type:"analog"},
+    {var:"Velocidade Bomba",value:13.58,min:9.48,max:17.33,std:2.03,unit:"%",n:392,type:"analog"},
+    {var:"Status Motor",value:3,min:3,max:3,std:0,unit:"",n:4,type:"status"},
+  ]},
+  NORDSON:{id:"NORDSON",name:"Nordson Linha Embalagem",area:"Embalagem (TPN)",type:"Nordson",plc:"ControlLogixTPN",status:"Operando",nominal:{pressao:600,rpm:55},tags:[
+    {var:"Pressão Bomba Superior L1",value:505.68,min:0,max:541,std:116.05,unit:"PSI",n:41,type:"analog"},
+    {var:"Pressão Bomba Superior L2",value:552.11,min:0,max:599,std:155.95,unit:"PSI",n:28,type:"analog"},
+    {var:"Pressão Bomba Inferior L1",value:493.0,min:55,max:527,std:97.08,unit:"PSI",n:44,type:"analog"},
+    {var:"Pressão Bomba Inferior L2",value:617.0,min:51,max:799,std:170.19,unit:"PSI",n:39,type:"analog"},
+    {var:"RPM Bomba Superior L1",value:48.92,min:31,max:55,std:10.81,unit:"RPM",n:12,type:"analog"},
+    {var:"RPM Bomba Superior L2",value:59.75,min:59,max:60,std:0.46,unit:"RPM",n:8,type:"analog"},
+    {var:"RPM Bomba Inferior L1",value:50.47,min:18,max:55,std:12.23,unit:"RPM",n:17,type:"analog"},
+  ]},
+  PIC5015A:{id:"PIC5015A",name:"Controle Pressão Silicato",area:"Spray Dryer",type:"Controle",plc:"ControlLogixT1",status:"Operando",nominal:{pressao:3.7},tags:[
+    {var:"Saída Controle (MV)",value:27.81,min:14.35,max:42.51,std:8.9,unit:"%",n:469,type:"analog"},
+    {var:"Valor Atual (PV)",value:3.55,min:0.36,max:5.42,std:1.37,unit:"bar",n:335,type:"analog"},
+    {var:"Setpoint Controle",value:3.7,min:3.6,max:4.0,std:0.2,unit:"bar",n:4,type:"analog"},
+    {var:"Ki (Integral)",value:5.0,min:5,max:5,std:0,unit:"",n:4,type:"param"},
+  ]},
+};
+
+// ═══════════════════════════════════════════════════════════════════
+// UTILITIES
+// ═══════════════════════════════════════════════════════════════════
+function desvio(atual,nom){ return nom ? ((atual-nom)/nom*100) : null; }
+function sColor(d){ return d===null?'var(--dim)':Math.abs(d)>15?'var(--red)':Math.abs(d)>10?'var(--orange)':Math.abs(d)>5?'var(--yellow)':'var(--green)'; }
+function sLabel(d){ return d===null?'N/A':Math.abs(d)>15?'CRITICO':Math.abs(d)>10?'ALERTA':Math.abs(d)>5?'ATENÇÃO':'NORMAL'; }
+function fmt(n,dec=1){ return n===null||n===undefined?'—':typeof n==='number'?(Number.isInteger(n)?n.toString():n.toFixed(dec)):n; }
+function motorLabel(v){ return v===3?'Operando':v===0?'Parado':v===5?'Falha':`Status ${v}`; }
+function esc(s){ const d=document.createElement('div');d.textContent=s;return d.innerHTML; }
+function getEquipAnalysis(id){
+  const e=EQUIPMENT[id]; if(!e) return null;
+  const pt=e.tags.find(t=>t.type==='analog');
+  const nk=Object.keys(e.nominal)[0];
+  const nv=e.nominal[nk];
+  const d=pt&&nv?desvio(pt.value,nv):null;
+  const ide=pt&&nv?pt.value/nv:null;
+  const cv=pt&&pt.value>0?(pt.std/pt.value*100):null;
+  return {primaryTag:pt,nomKey:nk,nomVal:nv,desvio:d,ide,cv};
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// CSV PARSER — Kusto/ADX pivot format
+// ═══════════════════════════════════════════════════════════════════
+function parseKustoCSV(csvText){
+  const lines=csvText.split('\n').filter(l=>l.trim());
+  if(lines.length<2) return {error:'CSV vazio ou inválido'};
+  const headers=lines[0].split(',').map(h=>h.trim().replace(/^"|"$/g,''));
+
+  // Detect Kusto format
+  const hasKustoCols = headers.includes('SiteId') || headers.includes('MachineId') || headers.includes('DATA_CORRIGIDA');
+  const metaCols = ['SiteId','MachineId','DATA_CORRIGIDA','Timestamp'];
+  const tagCols = headers.filter(h=>!metaCols.includes(h));
+
+  // Parse rows
+  const rows=[];
+  for(let i=1;i<lines.length;i++){
+    const vals=lines[i].split(',').map(v=>v.trim().replace(/^"|"$/g,''));
+    if(vals.length<headers.length) continue;
+    const row={};
+    headers.forEach((h,j)=>row[h]=vals[j]);
+    rows.push(row);
+  }
+
+  // Compute stats per tag
+  const results={};
+  let dateStr='';
+  if(rows.length>0&&rows[0].DATA_CORRIGIDA) dateStr=rows[0].DATA_CORRIGIDA;
+
+  tagCols.forEach(col=>{
+    const vals=rows.map(r=>parseFloat(r[col])).filter(v=>!isNaN(v));
+    if(vals.length===0) return;
+    const mean=vals.reduce((a,b)=>a+b,0)/vals.length;
+    const min=Math.min(...vals);
+    const max=Math.max(...vals);
+    const std=vals.length>1?Math.sqrt(vals.map(v=>(v-mean)**2).reduce((a,b)=>a+b,0)/(vals.length-1)):0;
+
+    // Extract equipment ID from tag name
+    const parts=col.split('.');
+    const tagShort=parts[parts.length-1]||col;
+    const equipId=(tagShort.split(' - ')[0]||'').trim();
+    const varName=(tagShort.split(' - ').slice(1).join(' - ')||tagShort).trim();
+
+    // Classify type
+    let type='analog';
+    if(vals.length<=5 && (max===0||max===1)) type='bool';
+    else if(vals.length<=5 && (max===3||max===4||max===5)) type='status';
+    else if(max>1000 && !varName.toLowerCase().includes('convert')) type='raw';
+
+    // Detect unit from var name
+    let unit='';
+    if(/corrente|current/i.test(varName)&&type==='analog') unit='A';
+    if(/velocidade|speed|rpm/i.test(varName)) unit=varName.toLowerCase().includes('rpm')?'RPM':'%';
+    if(/temperatura|temp/i.test(varName)) unit='°C';
+    if(/pressao|press/i.test(varName)) unit='mmH₂O';
+    if(/vazao|flow/i.test(varName)) unit='T/H';
+    if(/vibra/i.test(varName)) unit='raw';
+
+    if(!results[equipId]) results[equipId]={id:equipId,tags:[]};
+    results[equipId].tags.push({var:varName,value:Math.round(mean*100)/100,min:Math.round(min*100)/100,max:Math.round(max*100)/100,std:Math.round(std*100)/100,unit,n:vals.length,type});
+  });
+
+  return {equipment:results,rowCount:rows.length,tagCount:tagCols.length,date:dateStr};
+}
+
+function mergeImportedData(parsed){
+  let newCount=0, updatedCount=0;
+  Object.entries(parsed.equipment).forEach(([eqId,eqData])=>{
+    // Try to find matching equipment in EQUIPMENT
+    let matchKey = Object.keys(EQUIPMENT).find(k=>k===eqId||EQUIPMENT[k].id===eqId);
+    if(matchKey){
+      // Update existing: replace tags with analog data > threshold
+      const newAnalog = eqData.tags.filter(t=>t.type==='analog'&&t.n>2);
+      if(newAnalog.length>0){
+        const existing=EQUIPMENT[matchKey];
+        newAnalog.forEach(nt=>{
+          const idx=existing.tags.findIndex(t=>t.var.includes(nt.var.substring(0,15))||nt.var.includes(t.var.substring(0,15)));
+          if(idx>=0){
+            existing.tags[idx]={...existing.tags[idx],...nt};
+          } else {
+            existing.tags.push(nt);
+          }
+        });
+        updatedCount++;
+      }
+    } else if(eqData.tags.filter(t=>t.type==='analog'&&t.n>2).length>0){
+      // Add new equipment
+      const analogTags=eqData.tags.filter(t=>t.n>2);
+      EQUIPMENT[eqId]={
+        id:eqId, name:eqId.replace(/_/g,' '), area:'Importado CSV', type:'Importado',
+        plc:'CSV', status:'Importado', nominal:{},
+        tags:analogTags,
+      };
+      newCount++;
+    }
+  });
+  return {newCount,updatedCount};
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// RENDER ENGINE
+// ═══════════════════════════════════════════════════════════════════
+let currentTab='overview';
+
+function switchTab(tab){
+  currentTab=tab;
+  document.querySelectorAll('.tab-btn').forEach(b=>{
+    b.classList.toggle('active',b.dataset.tab===tab);
+  });
+  render();
+}
+
+function render(){
+  const el=document.getElementById('content');
+  switch(currentTab){
+    case 'overview': el.innerHTML=renderOverview(); break;
+    case 'caldeira': el.innerHTML=renderCaldeira(); break;
+    case 'ventiladores': el.innerHTML=renderVentiladores(); break;
+    case 'bombas': el.innerHTML=renderBombas(); break;
+    case 'analysis': el.innerHTML=renderAnalysis(); break;
+    case 'alerts': el.innerHTML=renderAlerts(); break;
+    case 'import': el.innerHTML=renderImport(); break;
+  }
+  attachHandlers();
+}
+
+function renderOverview(){
+  const ids=Object.keys(EQUIPMENT);
+  const vents=ids.filter(k=>EQUIPMENT[k].type==='Ventilador');
+  const bombas=ids.filter(k=>EQUIPMENT[k].type==='Bomba');
+  const temps=ids.filter(k=>EQUIPMENT[k].type==='Temperatura');
+  const press=ids.filter(k=>EQUIPMENT[k].type==='Pressão');
+  const outros=ids.filter(k=>!['Ventilador','Bomba','Temperatura','Pressão'].includes(EQUIPMENT[k].type));
+
+  const analyses=ids.map(k=>{const a=getEquipAnalysis(k);return a?{id:k,...a}:null;}).filter(Boolean);
+  const critCount=analyses.filter(x=>x.desvio!==null&&Math.abs(x.desvio)>10).length;
+  const okCount=analyses.filter(x=>x.desvio!==null&&Math.abs(x.desvio)<=5).length;
+  const fornalha=EQUIPMENT.TT13640?EQUIPMENT.TT13640.tags[0]:null;
+
+  // Fan chart data
+  const fanData=vents.filter(k=>{const t=EQUIPMENT[k].tags.find(t=>t.var.includes('Corrente Atual'));return t&&t.value>20;})
+    .map(k=>{const e=EQUIPMENT[k];const t=e.tags.find(t=>t.var.includes('Corrente Atual'));return{id:e.id,name:e.name,atual:t.value,nominal:e.nominal.corrente||0};});
+
+  let html=`<div class="kpi-grid">`;
+  [{icon:'⚡',label:'Equipamentos',value:ids.length,color:'var(--accent)',sub:`${vents.length} vent. · ${bombas.length} bombas`},
+   {icon:'◉',label:'Tags Monitoradas',value:'3.371',color:'var(--cyan)',sub:'2935 caldeira · 436 spray'},
+   {icon:'🌡',label:'Fornalha',value:fornalha?fmt(fornalha.value)+'°C':'—',color:'var(--orange)',sub:'Nominal: 950°C'},
+   {icon:'✓',label:'Normais',value:okCount,color:'var(--green)',sub:`de ${analyses.length} analisados`},
+   {icon:'⚠',label:'Alertas',value:critCount,color:critCount>0?'var(--red)':'var(--green)',sub:'Desvio > 10%'},
+  ].forEach(k=>{
+    html+=`<div class="kpi"><div class="kpi-bar" style="background:${k.color}"></div><div class="kpi-label">${k.icon} ${k.label}</div><div class="kpi-value mono">${k.value}</div><div class="kpi-sub">${k.sub}</div></div>`;
+  });
+  html+=`</div>`;
+
+  // Fan bar chart (CSS bars)
+  if(fanData.length>0){
+    const maxVal=Math.max(...fanData.map(f=>Math.max(f.atual,f.nominal)))*1.1;
+    html+=`<div class="card"><div class="card-title">Corrente Ventiladores — Nominal vs Atual (A)</div><div class="bar-chart">`;
+    fanData.forEach(f=>{
+      const d=desvio(f.atual,f.nominal);
+      const col=sColor(d);
+      html+=`<div class="bar-row">
+        <div class="bar-label mono">${esc(f.id)}</div>
+        <div class="bar-track">
+          <div class="bar-fill" style="width:${(f.nominal/maxVal*100)}%;background:var(--dim);opacity:0.4;border-radius:4px 0 0 4px"></div>
+          <div class="bar-fill" style="width:${(f.atual/maxVal*100)}%;background:${col};opacity:0.85;border-radius:4px"></div>
+          <div class="bar-nom" style="left:${(f.nominal/maxVal*100)}%"></div>
+        </div>
+        <div class="bar-val-label mono" style="color:${col}">${fmt(f.atual)}A</div>
+      </div>`;
+    });
+    html+=`</div></div>`;
+  }
+
+  // Equipment grid by section
+  [{title:'Ventiladores',ids:vents},{title:'Bombas Spray Dryer',ids:bombas},{title:'Temperaturas & Pressões',ids:[...temps,...press]},{title:'Vazão, Controle & Outros',ids:outros}].forEach(sec=>{
+    if(sec.ids.length===0) return;
+    html+=`<div class="section-title">${sec.title}</div><div class="equip-grid">`;
+    sec.ids.forEach(id=>{ html+=renderEquipCard(id); });
+    html+=`</div><div style="margin-bottom:16px"></div>`;
+  });
+
+  return html;
+}
+
+function renderCaldeira(){
+  const kpiItems=[
+    {label:'Temperatura Fornalha',value:'970.6°C',color:'var(--orange)'},
+    {label:'Pressão Fornalha',value:'-9.27 mmH₂O',color:'var(--cyan)'},
+    {label:'Vazão Vapor T1',value:'84.95 T/H',color:'var(--accent)'},
+    {label:'Vazão Vapor T2',value:'103.7 T/H',color:'var(--green)'},
+  ];
+
+  let html=`<div class="kpi-grid" style="grid-template-columns:repeat(4,1fr)">`;
+  kpiItems.forEach(k=>{
+    html+=`<div class="kpi"><div class="kpi-bar" style="background:${k.color}"></div><div class="kpi-label">${k.label}</div><div class="kpi-value mono">${k.value}</div></div>`;
+  });
+  html+=`</div>`;
+
+  // Temperaturas card
+  html+=`<div class="card"><div class="card-title">Temperatura Fornalha</div><div class="temp-display"><div class="temp-value mono" style="color:var(--orange)">970.6</div><div class="temp-sub">°C · Nominal: 950°C</div><div style="font-size:11px;color:var(--green);margin-top:8px">+2.2% (Normal)</div></div></div>`;
+
+  // Pressões card (horizontal bars, centered, negative left/positive right)
+  const pressures=[
+    {id:'PT13570',name:'Fornalha',value:-9.27,nominal:-10},
+    {id:'PT13571',name:'Saída Gases',value:-14.79,nominal:-15},
+    {id:'PT13572',name:'Filtro 01',value:-82.37,nominal:-80},
+    {id:'PT13574',name:'Duto Processo',value:27.30,nominal:25},
+    {id:'PT13578',name:'Sulfonação',value:-12.84,nominal:-12},
+  ];
+  const maxP=Math.max(...pressures.map(p=>Math.abs(p.value)))*1.1;
+  html+=`<div class="card"><div class="card-title">Pressões (5 transmissores)</div><div class="bar-chart">`;
+  pressures.forEach(p=>{
+    const isNeg=p.value<0;
+    const barVal=Math.abs(p.value)/maxP*45;
+    const col=p.value<0?'var(--cyan)':'var(--green)';
+    html+=`<div class="bar-row" data-equip="${p.id}" style="cursor:pointer">
+      <div class="bar-label mono" style="width:110px;text-align:right">${esc(p.id)}</div>
+      <div style="flex:1;display:flex;align-items:center;justify-content:center;position:relative;height:20px;min-width:100px">
+        <div style="position:absolute;left:50%;width:1px;height:100%;background:var(--border2);z-index:1"></div>
+        <div style="position:absolute;${isNeg?'right:50%;margin-right:4px':'left:50%;margin-left:4px'};background:${col};height:16px;width:${barVal}%;border-radius:4px;opacity:0.8"></div>
+      </div>
+      <div class="bar-val-label mono" style="color:${col}">${fmt(p.value)} mmH₂O</div>
+    </div>`;
+  });
+  html+=`</div></div>`;
+
+  // Vazão de Vapor (two gauges)
+  html+=`<div class="card"><div class="card-title">Vazão de Vapor (Torres)</div><div class="grid-2">
+    <div class="gauge">
+      <div class="gauge-label">Torre 1</div>
+      <div class="gauge-tank">
+        <div class="gauge-fill" style="height:${(84.95/111.20*100)}%;background:linear-gradient(to top,var(--accent),rgba(59,130,246,0.6))"></div>
+      </div>
+      <div class="gauge-value">84.95</div>
+      <div class="gauge-sub">T/H (nominal: 100)</div>
+    </div>
+    <div class="gauge">
+      <div class="gauge-label">Torre 2</div>
+      <div class="gauge-tank">
+        <div class="gauge-fill" style="height:${(103.70/107.70*100)}%;background:linear-gradient(to top,var(--green),rgba(16,185,129,0.6))"></div>
+      </div>
+      <div class="gauge-value">103.7</div>
+      <div class="gauge-sub">T/H (nominal: 105)</div>
+    </div>
+  </div></div>`;
+
+  // Vibração card
+  html+=`<div class="card"><div class="card-title">Vibração</div><div style="padding:8px 0">
+    <div style="display:flex;justify-content:space-between;margin-bottom:10px">
+      <div>
+        <div style="font-size:10px;color:var(--muted);margin-bottom:4px">VT13190 — Booster 01A</div>
+        <div style="font-size:18px;font-weight:700">5413.18</div>
+        <div style="font-size:10px;color:var(--dim)">raw ADC</div>
+      </div>
+      <div>
+        <div style="font-size:10px;color:var(--muted);margin-bottom:4px">VT13200 — Booster 01B</div>
+        <div style="font-size:18px;font-weight:700">6893.13</div>
+        <div style="font-size:10px;color:var(--dim)">raw ADC</div>
+      </div>
+    </div>
+    <div style="background:var(--bg2);border-radius:6px;padding:8px;border-left:3px solid var(--yellow);font-size:11px;color:var(--muted)">
+      Necessário converter para mm/s (ISO 10816) usando fator de calibração do sensor.
+    </div>
+  </div></div>`;
+
+  // Correias card
+  const correias=[
+    {id:'BC1302',name:'Correia 01',corrente:4.70,velocidade:76.08},
+    {id:'BC1303',name:'Correia 02',corrente:6.45,velocidade:87.68},
+  ];
+  html+=`<div class="card"><div class="card-title">Correias Transportadoras</div><table><thead><tr><th>Equipamento</th><th style="text-align:right">Corrente (A)</th><th style="text-align:right">Velocidade (%)</th></tr></thead><tbody>`;
+  correias.forEach((c,i)=>{
+    html+=`<tr class="clickable" data-equip="${c.id}" style="${i%2?'background:rgba(255,255,255,0.015)':''}">
+      <td>${esc(c.name)}</td>
+      <td class="mono" style="text-align:right;font-weight:600">${fmt(c.corrente)}</td>
+      <td class="mono" style="text-align:right">${fmt(c.velocidade)}</td>
+    </tr>`;
+  });
+  html+=`</tbody></table></div>`;
+
+  // Equipment cards
+  const caldIds=['F1319','F1320','F1317','F1318','F1333','F1334','F1335','TT13640','PT13570','PT13571','PT13572','PT13574','PT13578','FT13640','FT13650','VT13190','VT13200','BC1302','BC1303'];
+  html+=`<div class="section-title" style="margin-top:16px">Equipamentos da Caldeira</div><div class="equip-grid">`;
+  caldIds.forEach(id=>{ if(EQUIPMENT[id]) html+=renderEquipCard(id); });
+  html+=`</div>`;
+
+  return html;
+}
+
+function renderVentiladores(){
+  const fans=['F1319','F1320','F1317','F1318','F1333','F1334','F1335'];
+  const fanData=fans.map(id=>{
+    const e=EQUIPMENT[id];
+    const corrTag=e.tags.find(t=>t.var.includes('Corrente Atual'));
+    const speedTag=e.tags.find(t=>t.var.includes('Setpoint Velocidade'));
+    const a=getEquipAnalysis(id);
+    return {id,name:e.name,corrente:corrTag.value,nominalCorr:e.nominal.corrente||0,speed:speedTag?speedTag.value:0,desvio:a.desvio};
+  });
+
+  let html=`<div class="kpi-grid" style="grid-template-columns:repeat(4,1fr)">`;
+  [{label:'Total Ventiladores',value:fans.length,color:'var(--accent)'},
+   {label:'Média Corrente',value:fmt(fanData.reduce((a,b)=>a+b.corrente,0)/fanData.length)+'A',color:'var(--cyan)'},
+   {label:'Maior Desvio',value:fmt(Math.max(...fanData.map(f=>Math.abs(f.desvio))))+'%',color:'var(--orange)'},
+   {label:'Status',value:'Todos OK',color:'var(--green)'},
+  ].forEach(k=>{
+    html+=`<div class="kpi"><div class="kpi-bar" style="background:${k.color}"></div><div class="kpi-label">${k.label}</div><div class="kpi-value mono">${k.value}</div></div>`;
+  });
+  html+=`</div>`;
+
+  // Corrente chart
+  const maxCorr=Math.max(...fanData.map(f=>Math.max(f.corrente,f.nominalCorr)))*1.1;
+  html+=`<div class="card"><div class="card-title">Corrente Nominal vs Atual — Ventiladores (A)</div><div class="bar-chart">`;
+  fanData.forEach(f=>{
+    const col=sColor(f.desvio);
+    html+=`<div class="bar-row">
+      <div class="bar-label mono">${esc(f.id)}</div>
+      <div class="bar-track">
+        <div class="bar-fill" style="width:${(f.nominalCorr/maxCorr*100)}%;background:var(--dim);opacity:0.3;border-radius:4px 0 0 4px"></div>
+        <div class="bar-fill" style="width:${(f.corrente/maxCorr*100)}%;background:${col};opacity:0.85;border-radius:4px"></div>
+      </div>
+      <div class="bar-val-label mono" style="color:${col}">${fmt(f.corrente)}A</div>
+    </div>`;
+  });
+  html+=`</div></div>`;
+
+  // Table
+  html+=`<div class="card"><div class="card-title">Tabela Detalhada</div><table><thead><tr>
+    <th style="text-align:center">TAG</th><th>Nome</th><th style="text-align:right">Corrente Atual (A)</th>
+    <th style="text-align:right">Nominal (A)</th><th style="text-align:right">Desvio %</th>
+    <th style="text-align:right">IDE</th><th style="text-align:center">Status</th>
+  </tr></thead><tbody>`;
+  fanData.forEach((f,i)=>{
+    const a=getEquipAnalysis(f.id);
+    const col=sColor(f.desvio);
+    html+=`<tr class="clickable" data-equip="${f.id}" style="${i%2?'background:rgba(255,255,255,0.015)':''}">
+      <td class="mono" style="text-align:center;color:var(--accent);font-weight:600">${esc(f.id)}</td>
+      <td>${esc(f.name)}</td>
+      <td class="mono" style="text-align:right;font-weight:600">${fmt(f.corrente)}</td>
+      <td class="mono" style="text-align:right;color:var(--accent)">${fmt(f.nominalCorr)}</td>
+      <td class="mono" style="text-align:right;font-weight:700;color:${col}">${f.desvio>0?'+':''}${fmt(f.desvio)}%</td>
+      <td class="mono" style="text-align:right;color:${a.ide>1.1?'var(--red)':a.ide>1.05?'var(--yellow)':'var(--green)'}">${a.ide?fmt(a.ide,3):'—'}</td>
+      <td style="text-align:center"><span class="equip-status" style="background:${col}22;color:${col}">${sLabel(f.desvio)}</span></td>
+    </tr>`;
+  });
+  html+=`</tbody></table></div>`;
+
+  // Velocidade chart
+  const maxSpeed=Math.max(...fanData.map(f=>f.speed))*1.1;
+  html+=`<div class="card"><div class="card-title">Velocidade Setpoint (%)</div><div class="bar-chart">`;
+  fanData.forEach(f=>{
+    html+=`<div class="bar-row">
+      <div class="bar-label mono">${esc(f.id)}</div>
+      <div class="bar-track">
+        <div class="bar-fill" style="width:${(f.speed/maxSpeed*100)}%;background:var(--accent);opacity:0.8;border-radius:4px"></div>
+      </div>
+      <div class="bar-val-label mono">${fmt(f.speed)}%</div>
+    </div>`;
+  });
+  html+=`</div></div>`;
+
+  // Equipment cards
+  html+=`<div class="section-title" style="margin-top:16px">Equipamentos</div><div class="equip-grid">`;
+  fans.forEach(id=>{ html+=renderEquipCard(id); });
+  html+=`</div>`;
+
+  return html;
+}
+
+function renderBombas(){
+  const boosterFans=['F1319','F1320','F1317','F1318'];
+  const totalCorr=boosterFans.reduce((a,b)=>a+(EQUIPMENT[b].tags.find(t=>t.var.includes('Corrente Atual'))?.value||0),0);
+  const avgBoosterCorr=totalCorr/boosterFans.length;
+
+  const bombas=['VP1443','P455','P441B','P444B','P1442A','P1446A'];
+  const operando=bombas.filter(id=>EQUIPMENT[id].status==='Operando').length;
+  const paradas=bombas.length-operando;
+  const vacuoCorr=EQUIPMENT.VP1443.tags.find(t=>t.var.includes('Corrente'))?.value||0;
+
+  let html=`<div class="kpi-grid" style="grid-template-columns:repeat(4,1fr)">`;
+  [{label:'Total Bombas',value:bombas.length+' (+Nordson)',color:'var(--accent)'},
+   {label:'Operando',value:operando,color:'var(--green)'},
+   {label:'Paradas',value:paradas,color:paradas>0?'var(--yellow)':'var(--dim)'},
+   {label:'Bomba Vácuo',value:fmt(vacuoCorr)+'A',color:'var(--cyan)'},
+  ].forEach(k=>{
+    html+=`<div class="kpi"><div class="kpi-bar" style="background:${k.color}"></div><div class="kpi-label">${k.label}</div><div class="kpi-value mono">${k.value}</div></div>`;
+  });
+  html+=`</div>`;
+
+  // Torre 1 - Spray Dryer
+  html+=`<div style="font-size:13px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin:16px 0 10px">Torre 1 — Spray Dryer</div>`;
+  const t1Bombas=['P441B','P444B'];
+  html+=`<div class="card"><div class="bar-chart">`;
+  t1Bombas.forEach(id=>{
+    const e=EQUIPMENT[id];
+    const rpmTag=e.tags.find(t=>t.var.includes('RPM'));
+    const speedTag=e.tags.find(t=>t.var.includes('Velocidade'));
+    html+=`<div class="bar-row" data-equip="${id}" style="cursor:pointer">
+      <div class="bar-label mono">${esc(id)}</div>
+      <div class="bar-track">
+        <div class="bar-fill" style="width:${(speedTag.value/42.51*100)}%;background:var(--accent);opacity:0.8;border-radius:4px"></div>
+      </div>
+      <div class="bar-val-label mono">${fmt(speedTag.value)}% (${fmt(rpmTag.value)} Hz)</div>
+    </div>`;
+  });
+  html+=`</div></div>`;
+
+  // Torre 2 - Spray Dryer
+  html+=`<div style="font-size:13px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin:16px 0 10px">Torre 2 — Spray Dryer</div>`;
+  const t2Bombas=['P1442A','P1446A'];
+  html+=`<div class="card"><div class="bar-chart">`;
+  t2Bombas.forEach(id=>{
+    const e=EQUIPMENT[id];
+    const rpmTag=e.tags.find(t=>t.var.includes('RPM'));
+    const speedTag=e.tags.find(t=>t.var.includes('Velocidade'));
+    html+=`<div class="bar-row" data-equip="${id}" style="cursor:pointer">
+      <div class="bar-label mono">${esc(id)}</div>
+      <div class="bar-track">
+        <div class="bar-fill" style="width:${(speedTag.value/66.08*100)}%;background:var(--green);opacity:0.8;border-radius:4px"></div>
+      </div>
+      <div class="bar-val-label mono">${fmt(speedTag.value)}% (${fmt(rpmTag.value)} Hz)</div>
+    </div>`;
+  });
+  html+=`</div></div>`;
+
+  // Geral
+  html+=`<div style="font-size:13px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin:16px 0 10px">Geral</div>`;
+  const geralBombas=['VP1443','P455'];
+  html+=`<div class="card"><div class="bar-chart">`;
+  geralBombas.forEach(id=>{
+    const e=EQUIPMENT[id];
+    const corrTag=e.tags.find(t=>t.var.includes('Corrente'));
+    html+=`<div class="bar-row" data-equip="${id}" style="cursor:pointer">
+      <div class="bar-label mono">${esc(id)}</div>
+      <div class="bar-track">
+        <div class="bar-fill" style="width:${(corrTag.value/18*100)}%;background:var(--cyan);opacity:0.8;border-radius:4px"></div>
+      </div>
+      <div class="bar-val-label mono">${fmt(corrTag.value)}A</div>
+    </div>`;
+  });
+  html+=`</div></div>`;
+
+  // Nordson
+  html+=`<div style="font-size:13px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin:16px 0 10px">Nordson — Embalagem</div>`;
+  const nordson=EQUIPMENT.NORDSON;
+  const nordsonLines=[
+    {name:'Bomba Superior L1',press:505.68,rpm:48.92},
+    {name:'Bomba Superior L2',press:552.11,rpm:59.75},
+    {name:'Bomba Inferior L1',press:493.0,rpm:50.47},
+    {name:'Bomba Inferior L2',press:617.0,rpm:null},
+  ];
+  html+=`<div class="card"><table><thead><tr><th>Linha</th><th style="text-align:right">Pressão (PSI)</th><th style="text-align:right">RPM</th></tr></thead><tbody>`;
+  nordsonLines.forEach((l,i)=>{
+    html+=`<tr style="${i%2?'background:rgba(255,255,255,0.015)':''}"><td>${l.name}</td>
+      <td class="mono" style="text-align:right;font-weight:600">${fmt(l.press)}</td>
+      <td class="mono" style="text-align:right">${l.rpm?fmt(l.rpm):'—'}</td></tr>`;
+  });
+  html+=`</tbody></table></div>`;
+
+  // Complete table
+  html+=`<div class="card"><div class="card-title">Tabela Completa — Todas Bombas</div><table><thead><tr>
+    <th style="text-align:center">TAG</th><th>Nome</th><th>Área</th><th style="text-align:right">Valor</th>
+    <th style="text-align:right">Nominal</th><th style="text-align:right">Desvio %</th><th style="text-align:center">Status</th>
+  </tr></thead><tbody>`;
+  bombas.concat(['NORDSON']).forEach((id,i)=>{
+    const e=EQUIPMENT[id];
+    const a=getEquipAnalysis(id);
+    const col=a&&a.desvio?sColor(a.desvio):'var(--dim)';
+    const val=a&&a.primaryTag?fmt(a.primaryTag.value):'—';
+    const nom=a&&a.nomVal?fmt(a.nomVal):'—';
+    const dev=a&&a.desvio?`${a.desvio>0?'+':''}${fmt(a.desvio)}%`:'—';
+    html+=`<tr class="clickable" data-equip="${id}" style="${i%2?'background:rgba(255,255,255,0.015)':''}">
+      <td class="mono" style="text-align:center;color:var(--accent);font-weight:600">${esc(id)}</td>
+      <td>${esc(e.name)}</td>
+      <td style="color:var(--dim);font-size:10px">${esc(e.area)}</td>
+      <td class="mono" style="text-align:right;font-weight:600">${val}</td>
+      <td class="mono" style="text-align:right;color:var(--accent)">${nom}</td>
+      <td class="mono" style="text-align:right;font-weight:700;color:${col}">${dev}</td>
+      <td style="text-align:center"><span class="equip-status" style="background:${col}22;color:${col}">${a&&a.desvio?sLabel(a.desvio):'N/A'}</span></td>
+    </tr>`;
+  });
+  html+=`</tbody></table></div>`;
+
+  // Equipment cards
+  html+=`<div class="section-title" style="margin-top:16px">Equipamentos</div><div class="equip-grid">`;
+  bombas.concat(['NORDSON']).forEach(id=>{ html+=renderEquipCard(id); });
+  html+=`</div>`;
+
+  return html;
+}
+
+function renderEquipCard(id){
+  const e=EQUIPMENT[id];
+  const a=getEquipAnalysis(id);
+  const col=a?sColor(a.desvio):'var(--dim)';
+  const label=a?sLabel(a.desvio):'N/A';
+  const analogCount=e.tags.filter(t=>t.type==='analog').length;
+
+  return `<div class="equip-card" data-equip="${id}" style="border-left-color:${col}">
+    <div class="equip-header">
+      <div>
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+          <span class="equip-id mono">${esc(e.id)}</span>
+          <span class="equip-status" style="background:${col}22;color:${col}">${label}</span>
+        </div>
+        <div class="equip-name">${esc(e.name)}</div>
+        <div class="equip-area">${esc(e.area)} · ${esc(e.type)}</div>
+      </div>
+      <div>
+        ${a&&a.primaryTag?`<div class="equip-value mono">${fmt(a.primaryTag.value)}<span class="equip-unit">${a.primaryTag.unit}</span></div>`:''}
+        ${a&&a.desvio!==null?`<div class="equip-desvio mono" style="color:${col}">${a.desvio>0?'+':''}${a.desvio.toFixed(1)}%</div>`:''}
+      </div>
+    </div>
+    <div class="equip-footer">
+      <span class="equip-footer-left">${analogCount} sinais · ${e.tags.length} tags</span>
+      <span class="equip-footer-right">Clique para detalhes →</span>
+    </div>
+  </div>`;
+}
+
+function renderAnalysis(){
+  const items=Object.entries(EQUIPMENT).map(([k,e])=>{
+    const a=getEquipAnalysis(k);
+    if(!a||a.desvio===null) return null;
+    return {id:k,...e,...a};
+  }).filter(Boolean).sort((a,b)=>Math.abs(b.desvio)-Math.abs(a.desvio));
+
+  let html=`<div class="card"><div class="card-title">Ranking — Nominal vs Atual (todos equipamentos)</div>
+  <table><thead><tr>
+    <th style="text-align:center">#</th><th style="text-align:center">TAG</th><th>Equipamento</th><th>Área</th>
+    <th style="text-align:right">Atual</th><th style="text-align:right">Nominal</th><th style="text-align:right">Desvio</th>
+    <th style="text-align:right">IDE</th><th style="text-align:right">CV%</th><th style="text-align:center">Status</th>
+  </tr></thead><tbody>`;
+
+  items.forEach((item,i)=>{
+    const col=sColor(item.desvio);
+    html+=`<tr class="clickable" data-equip="${item.id}" style="${i%2?'background:rgba(255,255,255,0.015)':''}">
+      <td class="mono" style="text-align:center;color:var(--dim)">${i+1}</td>
+      <td class="mono" style="text-align:center;color:var(--accent);font-weight:600">${esc(item.id)}</td>
+      <td>${esc(item.name)}</td><td style="color:var(--dim);font-size:10px">${esc(item.area)}</td>
+      <td class="mono" style="text-align:right;font-weight:600">${fmt(item.primaryTag.value)}</td>
+      <td class="mono" style="text-align:right;color:var(--accent)">${fmt(item.nomVal)}</td>
+      <td class="mono" style="text-align:right;font-weight:700;color:${col}">${item.desvio>0?'+':''}${item.desvio.toFixed(1)}%</td>
+      <td class="mono" style="text-align:right;color:${item.ide>1.1?'var(--red)':item.ide>1.05?'var(--yellow)':'var(--green)'}">${item.ide.toFixed(3)}</td>
+      <td class="mono" style="text-align:right;color:${item.cv&&item.cv>30?'var(--orange)':'var(--dim)'}">${item.cv?item.cv.toFixed(1):'—'}</td>
+      <td style="text-align:center"><span class="equip-status" style="background:${col}22;color:${col}">${sLabel(item.desvio)}</span></td>
+    </tr>`;
+  });
+
+  html+=`</tbody></table></div>`;
+
+  // Bar chart
+  const maxD=Math.max(...items.map(i=>Math.abs(i.desvio)))*1.2;
+  html+=`<div class="card"><div class="card-title">Desvio Percentual (%) — Ordenado por Criticidade</div><div class="bar-chart">`;
+  items.forEach(item=>{
+    const col=sColor(item.desvio);
+    const w=Math.abs(item.desvio)/maxD*100;
+    const isNeg=item.desvio<0;
+    html+=`<div class="bar-row" style="cursor:pointer" data-equip="${item.id}">
+      <div class="bar-label mono">${esc(item.id)}</div>
+      <div class="bar-track">
+        <div class="bar-fill" style="width:${w}%;background:${col};${isNeg?'right:50%':'left:50%'};border-radius:4px"></div>
+        <div style="position:absolute;left:50%;top:0;width:1px;height:100%;background:var(--border2)"></div>
+      </div>
+      <div class="bar-val-label mono" style="color:${col}">${item.desvio>0?'+':''}${item.desvio.toFixed(1)}%</div>
+    </div>`;
+  });
+  html+=`</div></div>`;
+
+  return html;
+}
+
+function renderAlerts(){
+  const items=Object.entries(EQUIPMENT).map(([k,e])=>{
+    const a=getEquipAnalysis(k);
+    if(!a||a.desvio===null||Math.abs(a.desvio)<=5) return null;
+    return {id:k,...e,...a};
+  }).filter(Boolean).sort((a,b)=>Math.abs(b.desvio)-Math.abs(a.desvio));
+
+  let html='';
+  if(items.length===0){
+    html=`<div class="card" style="text-align:center;padding:40px"><div style="font-size:48px;color:var(--green)">✓</div><div style="font-size:16px;font-weight:600;color:var(--green);margin-top:8px">Nenhum alerta ativo</div></div>`;
+  } else {
+    items.forEach(a=>{
+      const col=sColor(a.desvio);
+      html+=`<div class="alert-card" data-equip="${a.id}" style="border-left-color:${col};border:1px solid ${col}22">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+              <span class="mono" style="font-size:12px;color:var(--accent);font-weight:600">${esc(a.id)}</span>
+              <span class="equip-status" style="background:${col}22;color:${col}">${sLabel(a.desvio)}</span>
+            </div>
+            <div style="font-size:12px;font-weight:500">${esc(a.name)} — ${a.primaryTag.var}: ${fmt(a.primaryTag.value)} ${a.primaryTag.unit} (nominal: ${fmt(a.nomVal)} ${a.primaryTag.unit})</div>
+            <div style="font-size:10px;color:var(--dim);margin-top:2px">${esc(a.area)} · Clique para ver todas as tags</div>
+          </div>
+          <div style="text-align:right">
+            <div class="mono" style="font-size:20px;font-weight:700;color:${col}">${a.desvio>0?'+':''}${a.desvio.toFixed(1)}%</div>
+          </div>
+        </div>
+      </div>`;
+    });
+  }
+
+  html+=`<div style="font-size:13px;font-weight:600;letter-spacing:0.5px;margin:20px 0 10px">Recomendações do Especialista</div>`;
+  [{pri:'ALTA',text:'F1319/F1320 — Corrente 25-27% abaixo do nominal. Verificar se nominal está correto ou se há obstrução/desgaste.',color:'var(--red)'},
+   {pri:'ALTA',text:'Expandir janela de coleta KQL para 30 dias para validar tendência.',color:'var(--red)'},
+   {pri:'MÉDIA',text:'F1335 — Corrente 17A vs 130A nominal. Confirmar se opera em regime parcial.',color:'var(--orange)'},
+   {pri:'MÉDIA',text:'Vibração VT13190/VT13200 em raw ADC. Calibrar para mm/s (ISO 10816).',color:'var(--orange)'},
+   {pri:'MÉDIA',text:'Bombas com corrente=0 — confirmar se desligadas ou falha instrumentação.',color:'var(--orange)'},
+   {pri:'BAIXA',text:'Integrar medidores kWh para Consumo Específico real por tonelada.',color:'var(--yellow)'},
+   {pri:'BAIXA',text:'Adicionar tags de temperatura mancais para confiabilidade preditiva.',color:'var(--yellow)'},
+  ].forEach(r=>{
+    html+=`<div class="rec-card" style="border-left-color:${r.color}"><span class="rec-pri" style="color:${r.color}">${r.pri}</span><span class="rec-text">${r.text}</span></div>`;
+  });
+
+  return html;
+}
+
+function renderImport(){
+  return `
+    <div class="card">
+      <div class="card-title">Importar Dados do Kusto/ADX</div>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:16px;line-height:1.6">
+        Exporte seu CSV do Azure Data Explorer (Kusto) no formato pivot e arraste aqui.<br>
+        O parser detecta automaticamente as colunas <code style="background:var(--bg2);padding:2px 6px;border-radius:4px;font-size:11px">SiteId, MachineId, DATA_CORRIGIDA</code> + tags como colunas.
+      </p>
+      <div class="import-zone" id="dropZone" onclick="document.getElementById('csvInput').click()">
+        <div style="font-size:32px;color:var(--accent);margin-bottom:8px">📂</div>
+        <div style="font-size:14px;font-weight:600;color:var(--text)">Arraste o CSV aqui ou clique para selecionar</div>
+        <div class="import-info">Formato: CSV exportado do Kusto/ADX (pivot format)</div>
+        <input type="file" id="csvInput" accept=".csv" style="display:none" multiple>
+      </div>
+      <div id="importResult"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Como Exportar do Kusto/ADX</div>
+      <div style="font-size:12px;color:var(--muted);line-height:1.8">
+        <strong style="color:var(--text)">1.</strong> Abra o Azure Data Explorer → banco <code style="background:var(--bg2);padding:2px 6px;border-radius:4px">dfdataviewer</code><br>
+        <strong style="color:var(--text)">2.</strong> Execute sua query KQL com <code style="background:var(--bg2);padding:2px 6px;border-radius:4px">pivot(Tag, max(Value))</code><br>
+        <strong style="color:var(--text)">3.</strong> Clique em <strong style="color:var(--accent)">Export → To CSV</strong><br>
+        <strong style="color:var(--text)">4.</strong> Arraste o arquivo <code style="background:var(--bg2);padding:2px 6px;border-radius:4px">export.csv</code> na zona acima<br>
+        <strong style="color:var(--text)">5.</strong> Os dados serão processados e integrados ao dashboard automaticamente<br><br>
+        <strong style="color:var(--yellow)">Dica:</strong> Você pode importar múltiplos CSVs (ex: um para Caldeira, outro para Bombas). Cada importação adiciona ou atualiza os equipamentos existentes.
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Como Usar em Outro PC</div>
+      <div style="font-size:12px;color:var(--muted);line-height:1.8">
+        <strong style="color:var(--text)">1.</strong> Copie este arquivo <code style="background:var(--bg2);padding:2px 6px;border-radius:4px">dashboard_indaiatuba.html</code> para um pendrive ou rede<br>
+        <strong style="color:var(--text)">2.</strong> Abra com Chrome, Edge ou Firefox — <strong style="color:var(--green)">não precisa instalar nada</strong><br>
+        <strong style="color:var(--text)">3.</strong> Importe novos CSVs pela aba "Importar CSV"<br>
+        <strong style="color:var(--text)">4.</strong> Os dados são processados localmente no navegador (nada vai para a internet)<br><br>
+        <strong style="color:var(--cyan)">Nota:</strong> Os dados desta sessão atual ficam na memória do navegador. Para persistir, exporte novamente do Kusto a cada análise.
+      </div>
+    </div>
+  `;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// MODAL — Equipment Detail
+// ═══════════════════════════════════════════════════════════════════
+function openModal(id){
+  const e=EQUIPMENT[id]; if(!e) return;
+  const a=getEquipAnalysis(id);
+  const analogTags=e.tags.filter(t=>t.type==='analog');
+  const rawTags=e.tags.filter(t=>t.type==='raw');
+  const statusTags=e.tags.filter(t=>t.type==='bool'||t.type==='status');
+
+  let html=`<div class="modal-header"><div>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+      <span class="mono" style="font-size:14px;font-weight:700;color:var(--accent);background:rgba(59,130,246,0.1);padding:3px 10px;border-radius:6px">${esc(e.id)}</span>
+      <span class="equip-status" style="background:${e.status==='Operando'?'var(--green)':'var(--yellow)'}22;color:${e.status==='Operando'?'var(--green)':'var(--yellow)'}">${esc(e.status)}</span>
+    </div>
+    <div style="font-size:18px;font-weight:600">${esc(e.name)}</div>
+    <div style="font-size:11px;color:var(--dim);margin-top:4px">${esc(e.area)} · ${esc(e.type)} · PLC: ${esc(e.plc)}</div>
+  </div><button class="modal-close" onclick="closeModal()">✕</button></div>`;
+
+  // KPI bar
+  html+=`<div class="modal-kpis">`;
+  if(a&&a.primaryTag){
+    html+=`<div class="modal-kpi"><div class="modal-kpi-label">Valor Atual</div><div class="modal-kpi-value mono">${fmt(a.primaryTag.value)}<span style="font-size:10px;color:var(--dim);margin-left:3px">${a.primaryTag.unit}</span></div></div>`;
+  }
+  if(a&&a.nomVal!==null&&a.nomVal!==undefined){
+    html+=`<div class="modal-kpi"><div class="modal-kpi-label">Nominal</div><div class="modal-kpi-value mono" style="color:var(--accent)">${fmt(a.nomVal)}<span style="font-size:10px;color:var(--dim);margin-left:3px">${a.primaryTag?a.primaryTag.unit:''}</span></div></div>`;
+  }
+  if(a&&a.desvio!==null){
+    const col=sColor(a.desvio);
+    html+=`<div class="modal-kpi"><div class="modal-kpi-label">Desvio</div><div class="modal-kpi-value mono" style="color:${col}">${a.desvio>0?'+':''}${fmt(a.desvio)}%</div></div>`;
+    html+=`<div class="modal-kpi"><div class="modal-kpi-label">IDE</div><div class="modal-kpi-value mono" style="color:${a.ide>1.1?'var(--red)':a.ide>1.05?'var(--yellow)':'var(--green)'}">${a.ide.toFixed(3)}</div></div>`;
+    html+=`<div class="modal-kpi"><div class="modal-kpi-label">Status</div><div style="margin-top:6px"><span class="equip-status" style="font-size:14px;padding:4px 12px;background:${col}18;color:${col}">${sLabel(a.desvio)}</span></div></div>`;
+  }
+  html+=`</div>`;
+
+  html+=`<div class="modal-body">`;
+
+  // Analog tags table
+  if(analogTags.length>0){
+    html+=`<div style="margin-bottom:16px"><div class="tag-section-title" style="color:var(--green)"><span>◉</span> Sinais Analógicos Convertidos (${analogTags.length})</div>
+    <table><thead><tr><th>Variável</th><th style="text-align:right">Valor</th><th style="text-align:right">Mín</th><th style="text-align:right">Máx</th><th style="text-align:right">Std</th><th style="text-align:right">Unid.</th><th style="text-align:right">Amostras</th></tr></thead><tbody>`;
+    analogTags.forEach((t,i)=>{
+      html+=`<tr style="${i%2?'background:rgba(255,255,255,0.015)':''}">
+        <td style="font-weight:500">${esc(t.var)}</td>
+        <td class="mono" style="text-align:right;font-weight:700;font-size:12px">${fmt(t.value,2)}</td>
+        <td class="mono" style="text-align:right;color:var(--dim)">${fmt(t.min,2)}</td>
+        <td class="mono" style="text-align:right;color:var(--dim)">${fmt(t.max,2)}</td>
+        <td class="mono" style="text-align:right;color:var(--dim)">${fmt(t.std,2)}</td>
+        <td style="text-align:right;color:var(--muted);font-size:10px">${esc(t.unit)}</td>
+        <td class="mono" style="text-align:right;color:var(--muted);font-size:10px">${t.n}</td>
+      </tr>`;
+    });
+    html+=`</tbody></table></div>`;
+  }
+
+  // Range visualization
+  if(analogTags.filter(t=>t.unit).length>1){
+    const maxV=Math.max(...analogTags.filter(t=>t.unit).map(t=>Math.max(Math.abs(t.max),Math.abs(t.value))));
+    html+=`<div class="analysis-box"><div style="font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">Faixa Operacional</div><div class="range-vis">`;
+    analogTags.filter(t=>t.unit).forEach(t=>{
+      const absMax=maxV*1.1||1;
+      const left=(Math.min(t.min,0)+absMax)/(absMax*2)*100;
+      const w=(t.max-t.min)/(absMax*2)*100;
+      const marker=(t.value+absMax)/(absMax*2)*100;
+      html+=`<div class="range-row">
+        <div class="range-label mono">${esc(t.var.substring(0,18))}</div>
+        <div class="range-track">
+          <div class="range-bar" style="left:${Math.max(0,left)}%;width:${Math.min(100,w)}%;background:linear-gradient(90deg,var(--accent)88,var(--accent))"></div>
+          <div class="range-marker" style="left:${Math.max(0,Math.min(100,marker))}%"></div>
+        </div>
+        <div class="range-value mono">${fmt(t.value)} ${t.unit}</div>
+      </div>`;
+    });
+    html+=`</div></div>`;
+  }
+
+  // Raw tags
+  if(rawTags.length>0){
+    html+=`<div style="margin-bottom:16px"><div class="tag-section-title" style="color:var(--yellow)"><span>◈</span> Sinais Raw / Não Convertidos (${rawTags.length})</div>
+    <table><thead><tr><th>Variável</th><th style="text-align:right">Valor</th><th style="text-align:right">Mín</th><th style="text-align:right">Máx</th><th style="text-align:right">Std</th><th style="text-align:right">Amostras</th></tr></thead><tbody>`;
+    rawTags.forEach(t=>{
+      html+=`<tr><td style="color:var(--yellow)">${esc(t.var)}</td>
+        <td class="mono" style="text-align:right;font-weight:600;color:rgba(245,158,11,0.8)">${fmt(t.value,0)}</td>
+        <td class="mono" style="text-align:right;color:var(--dim)">${fmt(t.min,0)}</td>
+        <td class="mono" style="text-align:right;color:var(--dim)">${fmt(t.max,0)}</td>
+        <td class="mono" style="text-align:right;color:var(--dim)">${fmt(t.std,1)}</td>
+        <td class="mono" style="text-align:right;color:var(--muted);font-size:10px">${t.n}</td>
+      </tr>`;
+    });
+    html+=`</tbody></table></div>`;
+  }
+
+  // Status chips
+  if(statusTags.length>0){
+    html+=`<div style="margin-bottom:16px"><div class="tag-section-title" style="color:var(--cyan)"><span>◻</span> Status e Interlocks (${statusTags.length})</div><div class="status-chips">`;
+    statusTags.forEach(t=>{
+      const isOn=t.value>=0.5;
+      const isMotor=t.type==='status';
+      const dotColor=isMotor?(t.value===3?'var(--green)':t.value===0?'var(--red)':'var(--yellow)'):(isOn?'var(--green)':'rgba(239,68,68,0.4)');
+      html+=`<div class="status-chip"><div class="status-dot" style="background:${dotColor};${isOn?'box-shadow:0 0 8px '+dotColor:''}"></div><div><div class="status-chip-label">${esc(t.var)}</div><div class="status-chip-value mono" style="color:${isMotor?'var(--text)':(isOn?'var(--green)':'var(--red)')}">${isMotor?motorLabel(t.value):(isOn?'ON':'OFF')}</div></div></div>`;
+    });
+    html+=`</div></div>`;
+  }
+
+  // Reliability analysis
+  if(a&&a.desvio!==null){
+    const col=sColor(a.desvio);
+    const cvVal=a.primaryTag&&a.primaryTag.value>0?((a.primaryTag.std/a.primaryTag.value)*100):null;
+    html+=`<div class="analysis-box"><div style="font-size:11px;font-weight:600;color:var(--purple);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">Análise de Confiabilidade / Energia</div>
+    <div class="analysis-grid">
+      <div class="analysis-item"><div class="analysis-label">Índice Degradação</div><div class="analysis-value mono" style="color:${a.ide>1.1?'var(--red)':a.ide>1.05?'var(--yellow)':'var(--green)'}">${a.ide?a.ide.toFixed(3):'—'}</div><div class="analysis-sub">IDE = Atual/Nominal</div></div>
+      <div class="analysis-item"><div class="analysis-label">Desvio Percentual</div><div class="analysis-value mono" style="color:${col}">${a.desvio>0?'+':''}${a.desvio.toFixed(1)}%</div><div class="analysis-sub">(Atual - Nominal) / Nominal</div></div>
+      <div class="analysis-item"><div class="analysis-label">Variabilidade (CV)</div><div class="analysis-value mono" style="color:${cvVal&&cvVal>30?'var(--orange)':'var(--green)'}">${cvVal?cvVal.toFixed(1):'—'}%</div><div class="analysis-sub">Coef. Variação (Std/Mean)</div></div>
+    </div>
+    <div class="diagnosis" style="border-left-color:${col};background:${col}11">
+      ${Math.abs(a.desvio)>15?'Desvio crítico detectado. Recomenda-se inspeção imediata — verificar condição mecânica, obstrução, desbalanceamento ou degradação do acionamento.':
+        Math.abs(a.desvio)>5?'Desvio moderado. Equipamento operando fora da faixa ideal — monitorar tendência. Possíveis causas: sujeira, desgaste, variação de carga.':
+        'Equipamento operando dentro da faixa nominal. Sem ações corretivas necessárias no momento.'}
+      ${cvVal&&cvVal>30?' Alta variabilidade indica possível instabilidade de processo ou ciclagem.':''}
+    </div></div>`;
+  }
+
+  // Source info
+  html+=`<div style="display:flex;justify-content:space-between;font-size:9px;color:var(--dim);padding:8px 0 0;border-top:1px solid var(--border)">
+    <span>Fonte: Azure Data Explorer (Kusto) — ${esc(e.plc)}</span>
+    <span>Tags: ${e.tags.length} | Amostras: ${a&&a.primaryTag?a.primaryTag.n:'—'}</span>
+  </div>`;
+
+  html+=`</div>`;
+
+  document.getElementById('modalContent').innerHTML=html;
+  document.getElementById('modalOverlay').style.display='flex';
+  document.body.style.overflow='hidden';
+}
+
+function closeModal(){
+  document.getElementById('modalOverlay').style.display='none';
+  document.body.style.overflow='';
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// EVENT HANDLERS
+// ═══════════════════════════════════════════════════════════════════
+function attachHandlers(){
+  // Equipment cards click
+  document.querySelectorAll('[data-equip]').forEach(el=>{
+    el.addEventListener('click',()=>openModal(el.dataset.equip));
+  });
+
+  // CSV import
+  const dropZone=document.getElementById('dropZone');
+  const csvInput=document.getElementById('csvInput');
+  if(dropZone){
+    dropZone.addEventListener('dragover',e=>{e.preventDefault();dropZone.classList.add('dragover');});
+    dropZone.addEventListener('dragleave',()=>dropZone.classList.remove('dragover'));
+    dropZone.addEventListener('drop',e=>{e.preventDefault();dropZone.classList.remove('dragover');handleFiles(e.dataTransfer.files);});
+  }
+  if(csvInput){
+    csvInput.addEventListener('change',e=>handleFiles(e.target.files));
+  }
+}
+
+function handleFiles(files){
+  const resultEl=document.getElementById('importResult');
+  if(!resultEl) return;
+  let totalHTML='';
+
+  Array.from(files).forEach(file=>{
+    if(!file.name.endsWith('.csv')){
+      totalHTML+=`<div class="import-status" style="background:var(--red)22;color:var(--red)">Arquivo "${file.name}" não é CSV</div>`;
+      return;
+    }
+    const reader=new FileReader();
+    reader.onload=function(e){
+      const parsed=parseKustoCSV(e.target.result);
+      if(parsed.error){
+        totalHTML+=`<div class="import-status" style="background:var(--red)22;color:var(--red)">Erro: ${parsed.error}</div>`;
+      } else {
+        const merge=mergeImportedData(parsed);
+        const dateStr=parsed.date||'N/A';
+        document.getElementById('headerDate').textContent=dateStr;
+        totalHTML+=`<div style="background:var(--card);border-radius:10px;padding:16px;border:1px solid var(--border);margin-top:12px">
+          <div style="font-size:13px;font-weight:600;color:var(--green);margin-bottom:8px">✓ ${file.name} importado com sucesso</div>
+          <div style="font-size:11px;color:var(--muted);line-height:1.8">
+            Linhas processadas: <strong style="color:var(--text)">${parsed.rowCount}</strong><br>
+            Tags encontradas: <strong style="color:var(--text)">${parsed.tagCount}</strong><br>
+            Equipamentos atualizados: <strong style="color:var(--accent)">${merge.updatedCount}</strong><br>
+            Equipamentos novos: <strong style="color:var(--cyan)">${merge.newCount}</strong><br>
+            Data coleta: <strong style="color:var(--text)">${dateStr}</strong>
+          </div>
+        </div>`;
+        resultEl.innerHTML=totalHTML;
+      }
+    };
+    reader.readAsText(file);
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════════════
+document.querySelectorAll('.tab-btn').forEach(btn=>{
+  btn.addEventListener('click',()=>switchTab(btn.dataset.tab));
+});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal();});
+render();
+</script>
+</body>
+</html>
