@@ -152,6 +152,42 @@ tr.clickable { cursor:pointer; }
 .temp-value { font-size:48px; font-weight:700; }
 .temp-sub { font-size:12px; color:var(--muted); margin-top:4px; }
 
+/* PARETO CHART */
+.pareto-container { position:relative; margin-top:8px; }
+.pareto-row { display:flex; align-items:center; gap:8px; margin-bottom:6px; }
+.pareto-label { font-size:10px; color:var(--muted); width:140px; text-align:right; flex-shrink:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.pareto-bar-wrap { flex:1; display:flex; align-items:center; gap:8px; }
+.pareto-bar-track { flex:1; height:22px; background:var(--bg); border-radius:4px; position:relative; overflow:hidden; }
+.pareto-bar-fill { height:100%; border-radius:4px; transition:width .5s; display:flex; align-items:center; justify-content:flex-end; padding-right:6px; }
+.pareto-bar-count { font-size:9px; font-weight:700; color:#fff; text-shadow:0 0 4px rgba(0,0,0,0.5); }
+.pareto-pct { font-size:10px; color:var(--muted); width:40px; text-align:right; flex-shrink:0; }
+.pareto-cumline { position:absolute; top:0; right:50px; width:2px; background:var(--accent); opacity:0.4; }
+.pareto-legend { display:flex; gap:16px; margin-top:10px; padding-top:8px; border-top:1px solid rgba(30,41,59,0.3); }
+.pareto-legend-item { display:flex; align-items:center; gap:5px; font-size:9px; color:var(--dim); }
+.pareto-legend-dot { width:8px; height:8px; border-radius:2px; }
+.pareto-row { cursor:pointer; padding:4px 6px; border-radius:6px; transition:background .2s; }
+.pareto-row:hover { background:rgba(59,130,246,0.08); }
+.pareto-row.active { background:rgba(59,130,246,0.12); }
+.pareto-detail { display:none; margin:0 0 12px 0; padding:14px; background:var(--card2); border:1px solid var(--border); border-radius:10px; animation:slideDown .3s ease; }
+.pareto-detail.open { display:block; }
+@keyframes slideDown { from{opacity:0;max-height:0;transform:translateY(-8px)} to{opacity:1;max-height:2000px;transform:translateY(0)} }
+.pareto-detail-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; padding-bottom:8px; border-bottom:1px solid var(--border); }
+.pareto-detail-title { font-size:13px; font-weight:700; color:var(--text); }
+.pareto-detail-summary { display:flex; gap:16px; font-size:10px; color:var(--muted); }
+.pareto-detail-summary span { display:flex; align-items:center; gap:4px; }
+.pareto-equip-table { width:100%; border-collapse:collapse; font-size:11px; }
+.pareto-equip-table th { font-size:9px; text-transform:uppercase; letter-spacing:.5px; color:var(--dim); padding:6px 8px; border-bottom:1px solid var(--border); font-weight:600; }
+.pareto-equip-table td { padding:8px; border-bottom:1px solid rgba(30,41,59,0.2); }
+.pareto-equip-table tr { cursor:pointer; transition:background .15s; }
+.pareto-equip-table tr:hover { background:rgba(59,130,246,0.06); }
+.pareto-equip-table .equip-link { color:var(--accent); font-weight:600; text-decoration:none; }
+.pareto-insight { margin-top:10px; padding:10px 12px; border-radius:8px; font-size:11px; line-height:1.6; border-left:3px solid; }
+.pareto-insight.critical { border-color:var(--red); background:rgba(239,68,68,0.06); color:var(--muted); }
+.pareto-insight.warning { border-color:var(--orange); background:rgba(249,115,22,0.06); color:var(--muted); }
+.pareto-insight.ok { border-color:var(--green); background:rgba(16,185,129,0.06); color:var(--muted); }
+.pareto-mini-bar { height:4px; border-radius:2px; background:var(--bg); overflow:hidden; min-width:60px; }
+.pareto-mini-fill { height:100%; border-radius:2px; }
+
 @media (max-width:900px) {
   .kpi-grid { grid-template-columns:repeat(2,1fr); }
   .equip-grid { grid-template-columns:repeat(2,1fr); }
@@ -564,6 +600,112 @@ function renderOverview(){
       </div>`;
     });
     html+=`</div></div>`;
+  }
+
+  // PARETO — Áreas Críticas por Desvio
+  const paretoData={};
+  analyses.forEach(x=>{
+    if(x.desvio===null) return;
+    const e=EQUIPMENT[x.id];
+    const area=e.type||e.area||'Outros';
+    if(!paretoData[area]) paretoData[area]={area,critico:0,alerta:0,atencao:0,normal:0,total:0};
+    const abs=Math.abs(x.desvio);
+    if(abs>15) paretoData[area].critico++;
+    else if(abs>10) paretoData[area].alerta++;
+    else if(abs>5) paretoData[area].atencao++;
+    else paretoData[area].normal++;
+    paretoData[area].total++;
+  });
+  const paretoArr=Object.values(paretoData).map(a=>({...a,desvios:a.critico+a.alerta+a.atencao})).sort((a,b)=>b.desvios-a.desvios||b.critico-a.critico);
+  const maxDesvios=Math.max(...paretoArr.map(a=>a.desvios),1);
+  const totalDesvios=paretoArr.reduce((s,a)=>s+a.desvios,0);
+
+  if(paretoArr.length>0 && totalDesvios>0){
+    let cumPct=0;
+    html+=`<div class="card"><div class="card-title">Pareto — Equipamentos Críticos por Tipo <span style="font-size:10px;color:var(--dim);font-weight:400;margin-left:8px">Clique para expandir</span></div><div class="pareto-container">`;
+    paretoArr.forEach(a=>{
+      if(a.desvios===0) return;
+      const pct=totalDesvios>0?(a.desvios/totalDesvios*100):0;
+      cumPct+=pct;
+      const barW=(a.desvios/maxDesvios*100);
+      const critW=a.desvios>0?(a.critico/a.desvios*barW):0;
+      const alertW=a.desvios>0?(a.alerta/a.desvios*barW):0;
+      const atencW=a.desvios>0?(a.atencao/a.desvios*barW):0;
+      const safeType=esc(a.area).replace(/[^a-zA-Z0-9]/g,'_');
+      html+=`<div class="pareto-row" data-pareto-type="${esc(a.area)}" onclick="toggleParetoDetail('${safeType}')">
+        <div class="pareto-label">${esc(a.area)} <span style="font-size:8px;color:var(--accent)">▶</span></div>
+        <div class="pareto-bar-wrap">
+          <div class="pareto-bar-track">
+            <div style="display:flex;height:100%">
+              ${a.critico>0?`<div class="pareto-bar-fill" style="width:${critW}%;background:var(--red)"><span class="pareto-bar-count">${a.critico}</span></div>`:''}
+              ${a.alerta>0?`<div class="pareto-bar-fill" style="width:${alertW}%;background:var(--orange)"><span class="pareto-bar-count">${a.alerta}</span></div>`:''}
+              ${a.atencao>0?`<div class="pareto-bar-fill" style="width:${atencW}%;background:var(--yellow)"><span class="pareto-bar-count">${a.atencao}</span></div>`:''}
+            </div>
+          </div>
+          <div class="pareto-pct mono">${fmt(cumPct,0)}%</div>
+        </div>
+      </div>`;
+      // Expandable detail panel
+      const typeEquips=ids.filter(k=>EQUIPMENT[k].type===a.area||EQUIPMENT[k].area===a.area);
+      const typeAnalyses=typeEquips.map(k=>{const an=getEquipAnalysis(k);return an?{id:k,...EQUIPMENT[k],...an}:null;}).filter(Boolean).sort((x,y)=>{
+        const ax=x.desvio!==null?Math.abs(x.desvio):0;const ay=y.desvio!==null?Math.abs(y.desvio):0;return ay-ax;});
+      const avgDesvio=typeAnalyses.filter(x=>x.desvio!==null).length>0?(typeAnalyses.filter(x=>x.desvio!==null).reduce((s,x)=>s+Math.abs(x.desvio),0)/typeAnalyses.filter(x=>x.desvio!==null).length):0;
+      const worst=typeAnalyses.length>0?typeAnalyses[0]:null;
+      const worstColor=worst?sColor(worst.desvio):'var(--dim)';
+      const insightClass=a.critico>0?'critical':a.alerta>0?'warning':'ok';
+      html+=`<div class="pareto-detail" id="pareto-${safeType}">
+        <div class="pareto-detail-header">
+          <div class="pareto-detail-title">${esc(a.area)} — ${typeEquips.length} equipamento${typeEquips.length>1?'s':''}</div>
+          <div class="pareto-detail-summary">
+            <span style="color:var(--red)">■ ${a.critico} crítico${a.critico!==1?'s':''}</span>
+            <span style="color:var(--orange)">■ ${a.alerta} alerta${a.alerta!==1?'s':''}</span>
+            <span style="color:var(--yellow)">■ ${a.atencao} atenção</span>
+            <span style="color:var(--green)">■ ${a.normal} normal</span>
+          </div>
+        </div>
+        <table class="pareto-equip-table"><thead><tr>
+          <th style="text-align:left">TAG</th><th style="text-align:left">Equipamento</th>
+          <th style="text-align:right">Atual</th><th style="text-align:right">Nominal</th>
+          <th style="text-align:right">Desvio</th><th style="text-align:right">IDE</th>
+          <th style="text-align:right">CV%</th><th style="text-align:center">Status</th><th>Desvio</th>
+        </tr></thead><tbody>`;
+      typeAnalyses.forEach(item=>{
+        const ic=sColor(item.desvio);
+        const absD=item.desvio!==null?Math.abs(item.desvio):0;
+        const barPct=Math.min(absD/30*100,100);
+        html+=`<tr data-equip="${item.id}">
+          <td class="mono equip-link">${esc(item.id)}</td>
+          <td style="color:var(--text)">${esc(item.name)}</td>
+          <td class="mono" style="text-align:right;font-weight:700">${item.primaryTag?fmt(item.primaryTag.value):'—'}<span style="font-size:9px;color:var(--dim)">${item.primaryTag?item.primaryTag.unit:''}</span></td>
+          <td class="mono" style="text-align:right;color:var(--accent)">${item.nomVal!==null?fmt(item.nomVal):'—'}</td>
+          <td class="mono" style="text-align:right;font-weight:700;color:${ic}">${item.desvio!==null?(item.desvio>0?'+':'')+item.desvio.toFixed(1)+'%':'—'}</td>
+          <td class="mono" style="text-align:right;color:${item.ide&&item.ide>1.1?'var(--red)':item.ide&&item.ide>1.05?'var(--yellow)':'var(--green)'}">${item.ide?item.ide.toFixed(3):'—'}</td>
+          <td class="mono" style="text-align:right;color:${item.cv&&item.cv>30?'var(--orange)':'var(--dim)'}">${item.cv?item.cv.toFixed(1):'—'}</td>
+          <td style="text-align:center"><span class="equip-status" style="background:${ic}22;color:${ic};font-size:9px">${sLabel(item.desvio)}</span></td>
+          <td><div class="pareto-mini-bar"><div class="pareto-mini-fill" style="width:${barPct}%;background:${ic}"></div></div></td>
+        </tr>`;
+      });
+      html+=`</tbody></table>`;
+      // Insight/recommendation
+      let insight='';
+      if(a.critico>0){
+        insight=`<strong style="color:var(--red)">Ação imediata requerida:</strong> ${a.critico} equipamento${a.critico>1?'s':''} com desvio >15%. `;
+        if(worst) insight+=`Pior: <strong>${worst.id}</strong> (${worst.desvio>0?'+':''}${worst.desvio.toFixed(1)}%). `;
+        insight+=`Desvio médio do grupo: ${avgDesvio.toFixed(1)}%. Verificar: condição mecânica, obstrução, dimensionamento nominal, degradação do acionamento.`;
+      }else if(a.alerta>0){
+        insight=`<strong style="color:var(--orange)">Monitoramento recomendado:</strong> ${a.alerta} equipamento${a.alerta>1?'s':''} com desvio entre 10-15%. `;
+        insight+=`Desvio médio: ${avgDesvio.toFixed(1)}%. Possíveis causas: desgaste progressivo, variação de carga, sujeira acumulada. Tendência de piora pode indicar necessidade de manutenção preventiva.`;
+      }else{
+        insight=`<strong style="color:var(--yellow)">Desvios moderados:</strong> ${a.atencao} equipamento${a.atencao>1?'s':''} com desvio entre 5-10%. Dentro da faixa aceitável, mas recomenda-se acompanhamento para detectar tendências de degradação.`;
+      }
+      html+=`<div class="pareto-insight ${insightClass}">${insight}</div></div>`;
+    });
+    html+=`<div class="pareto-legend">
+      <div class="pareto-legend-item"><div class="pareto-legend-dot" style="background:var(--red)"></div>Crítico (&gt;15%)</div>
+      <div class="pareto-legend-item"><div class="pareto-legend-dot" style="background:var(--orange)"></div>Alerta (&gt;10%)</div>
+      <div class="pareto-legend-item"><div class="pareto-legend-dot" style="background:var(--yellow)"></div>Atenção (&gt;5%)</div>
+      <div class="pareto-legend-item" style="margin-left:auto;font-weight:600;color:var(--muted)">Total: ${totalDesvios} desvios em ${paretoArr.filter(a=>a.desvios>0).length} tipos</div>
+    </div></div></div>`;
   }
 
   // Equipment grid by section
@@ -1192,6 +1334,24 @@ function closeModal(){
 
 // ═══════════════════════════════════════════════════════════════════
 // EVENT HANDLERS
+// ═══════════════════════════════════════════════════════════════════
+function toggleParetoDetail(safeType){
+  const panel=document.getElementById('pareto-'+safeType);
+  if(!panel) return;
+  const row=panel.previousElementSibling;
+  const isOpen=panel.classList.contains('open');
+  // Close all other panels
+  document.querySelectorAll('.pareto-detail.open').forEach(p=>{p.classList.remove('open');if(p.previousElementSibling)p.previousElementSibling.classList.remove('active');});
+  if(!isOpen){
+    panel.classList.add('open');
+    if(row) row.classList.add('active');
+    // Re-attach click handlers for equipment rows inside the detail
+    panel.querySelectorAll('[data-equip]').forEach(el=>{
+      el.onclick=()=>openModal(el.dataset.equip);
+    });
+  }
+}
+
 // ═══════════════════════════════════════════════════════════════════
 function attachHandlers(){
   // Equipment cards click
