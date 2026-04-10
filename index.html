@@ -1205,6 +1205,22 @@ function openModal(id){
   }
   html+=`</div>`;
 
+  // Explanation box
+  html+=`<div style="margin:0 20px;padding:10px 14px;background:rgba(59,130,246,0.05);border:1px solid rgba(59,130,246,0.15);border-radius:8px;cursor:pointer" onclick="const el=this.querySelector('.explain-body');el.style.display=el.style.display==='none'?'block':'none';this.querySelector('.explain-arrow').textContent=el.style.display==='none'?'▶':'▼'">
+    <div style="display:flex;align-items:center;gap:8px;font-size:11px;font-weight:600;color:var(--accent)">
+      <span class="explain-arrow">▶</span> Como interpretar os valores?
+    </div>
+    <div class="explain-body" style="display:none;margin-top:10px;font-size:10px;line-height:1.8;color:var(--muted)">
+      <div><b style="color:var(--text)">Valor Atual</b> — Leitura média do sensor principal no período analisado. É o valor real medido em campo.</div>
+      <div><b style="color:var(--accent)">Nominal</b> — Valor de referência de projeto ou catálogo. Representa a condição ideal de operação.</div>
+      <div><b style="color:var(--text)">Desvio %</b> — Diferença percentual: (Atual − Nominal) / Nominal × 100. <span style="color:var(--green)">Verde ≤5%</span> · <span style="color:var(--yellow)">Amarelo 5-10%</span> · <span style="color:var(--orange)">Laranja 10-15%</span> · <span style="color:var(--red)">Vermelho &gt;15%</span></div>
+      <div><b style="color:var(--text)">IDE</b> — Índice de Degradação Energética = Atual / Nominal. Valores acima de 1.0 indicam sobreconsumo; abaixo de 1.0 indicam suboperação.</div>
+      <div><b style="color:var(--text)">CV%</b> — Coeficiente de Variação = Desvio Padrão / Média × 100. Mede a estabilidade do sinal. CV &gt;30% indica instabilidade.</div>
+      <div><b style="color:var(--text)">Std</b> — Desvio padrão da medição. Quanto maior, mais o sinal oscila em torno da média.</div>
+      <div><b style="color:var(--text)">Amostras (n)</b> — Quantidade de leituras coletadas no período. Mais amostras = maior confiança na média.</div>
+    </div>
+  </div>`;
+
   html+=`<div class="modal-body">`;
 
   // Analog tags table
