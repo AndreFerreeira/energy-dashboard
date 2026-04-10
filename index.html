@@ -223,7 +223,7 @@ tr.clickable { cursor:pointer; }
   <button class="tab-btn" data-tab="bombas">Bombas</button>
   <button class="tab-btn" data-tab="analysis">Nominal vs Atual</button>
   <button class="tab-btn" data-tab="alerts">Alertas</button>
-  <button class="tab-btn" data-tab="import">Importar CSV</button>
+  <button class="tab-btn" data-tab="import">Configurações</button>
 </div>
 
 <div class="content" id="content"></div>
@@ -409,6 +409,10 @@ const EQUIPMENT = {
   ]},
 };
 
+// Snapshot inicial para permitir reset ("Limpar todos os dados")
+const EQUIPMENT_INITIAL = JSON.parse(JSON.stringify(EQUIPMENT));
+let importHistory = [];
+
 // ═══════════════════════════════════════════════════════════════════
 // UTILITIES
 // ═══════════════════════════════════════════════════════════════════
@@ -525,6 +529,35 @@ function mergeImportedData(parsed){
     }
   });
   return {newCount,updatedCount};
+}
+
+function clearAllData(){
+  const totalEquip=Object.keys(EQUIPMENT).length;
+  const initialCount=Object.keys(EQUIPMENT_INITIAL).length;
+  const importedCount=totalEquip-initialCount;
+  if(importHistory.length===0&&importedCount===0){
+    if(!confirm('Nenhum dado importado foi detectado. Ainda assim deseja restaurar todos os equipamentos ao estado original?')) return;
+  } else {
+    const msg=`Tem certeza que deseja LIMPAR TODOS OS DADOS?\n\n• ${importedCount} equipamento(s) importado(s) serão removidos\n• ${importHistory.length} CSV(s) processado(s) serão descartados\n• Todos os equipamentos originais voltarão aos valores de fábrica\n\nEsta ação não pode ser desfeita.`;
+    if(!confirm(msg)) return;
+  }
+  // Remove todas as chaves atuais de EQUIPMENT
+  Object.keys(EQUIPMENT).forEach(k=>{ delete EQUIPMENT[k]; });
+  // Restaura estado inicial (deep clone)
+  const snapshot=JSON.parse(JSON.stringify(EQUIPMENT_INITIAL));
+  Object.keys(snapshot).forEach(k=>{ EQUIPMENT[k]=snapshot[k]; });
+  importHistory=[];
+  const resultEl=document.getElementById('importResult');
+  if(resultEl) resultEl.innerHTML='';
+  render();
+  // Feedback visual após re-render
+  setTimeout(()=>{
+    const banner=document.createElement('div');
+    banner.style.cssText='position:fixed;top:20px;right:20px;background:rgba(16,185,129,0.95);color:#fff;padding:14px 22px;border-radius:10px;font-size:13px;font-weight:600;box-shadow:0 10px 30px rgba(0,0,0,0.4);z-index:9999;display:flex;align-items:center;gap:10px';
+    banner.innerHTML='<span style="font-size:18px">✓</span> Dados limpos com sucesso. Dashboard restaurado.';
+    document.body.appendChild(banner);
+    setTimeout(()=>{banner.style.transition='opacity 0.4s';banner.style.opacity='0';setTimeout(()=>banner.remove(),400);},2800);
+  },50);
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -1131,7 +1164,37 @@ function renderAlerts(){
 }
 
 function renderImport(){
+  const totalEquip=Object.keys(EQUIPMENT).length;
+  const initialCount=Object.keys(EQUIPMENT_INITIAL).length;
+  const importedCount=totalEquip-initialCount;
+  const hasImports=importHistory.length>0||importedCount>0;
   return `
+    <div class="card" style="border:1px solid ${hasImports?'rgba(239,68,68,0.35)':'var(--border)'}">
+      <div class="card-title" style="display:flex;align-items:center;gap:10px">
+        <span style="font-size:18px">🗑️</span> Limpar Todos os Dados
+      </div>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.6">
+        Remove todos os dados importados por CSV e restaura os equipamentos para os valores originais de fábrica.
+        Esta ação recarrega o dashboard com o estado inicial e não pode ser desfeita nesta sessão.
+      </p>
+      <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:center;padding:10px 14px;background:var(--bg2);border-radius:8px;margin-bottom:14px">
+        <div style="flex:1;min-width:120px">
+          <div style="font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:0.5px">Equipamentos originais</div>
+          <div class="mono" style="font-size:18px;font-weight:700;color:var(--accent)">${initialCount}</div>
+        </div>
+        <div style="flex:1;min-width:120px">
+          <div style="font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:0.5px">Importados nesta sessão</div>
+          <div class="mono" style="font-size:18px;font-weight:700;color:${importedCount>0?'var(--yellow)':'var(--muted)'}">${importedCount}</div>
+        </div>
+        <div style="flex:1;min-width:120px">
+          <div style="font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:0.5px">CSVs processados</div>
+          <div class="mono" style="font-size:18px;font-weight:700;color:${importHistory.length>0?'var(--yellow)':'var(--muted)'}">${importHistory.length}</div>
+        </div>
+      </div>
+      <button onclick="clearAllData()" style="background:${hasImports?'rgba(239,68,68,0.12)':'var(--bg2)'};color:${hasImports?'var(--red)':'var(--muted)'};border:1px solid ${hasImports?'rgba(239,68,68,0.4)':'var(--border)'};padding:10px 18px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:8px;transition:all 0.2s" onmouseover="this.style.background='rgba(239,68,68,0.18)';this.style.color='var(--red)'" onmouseout="this.style.background='${hasImports?'rgba(239,68,68,0.12)':'var(--bg2)'}';this.style.color='${hasImports?'var(--red)':'var(--muted)'}'">
+        <span>🗑️</span> Limpar Todos os Dados e Restaurar Padrão
+      </button>
+    </div>
     <div class="card">
       <div class="card-title">Importar Dados do Kusto/ADX</div>
       <p style="font-size:12px;color:var(--muted);margin-bottom:16px;line-height:1.6">
@@ -1384,6 +1447,7 @@ function handleFiles(files){
       } else {
         const merge=mergeImportedData(parsed);
         const dateStr=parsed.date||'N/A';
+        importHistory.push({file:file.name,date:dateStr,rows:parsed.rowCount,new:merge.newCount,updated:merge.updatedCount});
         document.getElementById('headerDate').textContent=dateStr;
         totalHTML+=`<div style="background:var(--card);border-radius:10px;padding:16px;border:1px solid var(--border);margin-top:12px">
           <div style="font-size:13px;font-weight:600;color:var(--green);margin-bottom:8px">✓ ${file.name} importado com sucesso</div>
