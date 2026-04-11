@@ -424,6 +424,10 @@ tr.clickable { cursor:pointer; }
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
     <span class="tab-btn-label">Configurações</span>
   </button>
+  <button class="tab-btn" data-tab="params">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
+    <span class="tab-btn-label">Parâmetros</span>
+  </button>
 
   <div class="sidebar-footer">
     <span class="live-dot"></span>
@@ -1035,6 +1039,7 @@ function render(){
     case 'alerts': el.innerHTML=renderAlerts(); break;
     case 'simulator': el.innerHTML=renderSimulator(); renderSimulatorView(); break;
     case 'import': el.innerHTML=renderImport(); break;
+    case 'params': el.innerHTML=renderParams(); break;
   }
   attachHandlers();
 }
@@ -2159,6 +2164,34 @@ function renderSimulatorView(){
     </div>`;
   }
 
+  // ---- FUNNEL DEMAND BRIDGE ----
+  // mostra a demanda atual do funil e permite puxar para os inputs do simulador
+  const funnelF=computeFunnelLoads();
+  const funnelTotalDay=Math.round(funnelF.total*s.hoursPerDay);
+  const funnelMatch=Math.abs(funnelTotalDay-s.tonsPerDay)<1;
+  const simT1Funnel=funnelF.T1>0?simulateTower(s.t1,funnelF.T1,s.humidity,s.ambientTemp):null;
+  const simT2Funnel=funnelF.T2>0?simulateTower(s.t2,funnelF.T2,s.humidity,s.ambientTemp):null;
+  const kwhFT1=simT1Funnel&&simT1Funnel.viavel?simT1Funnel.kwhPerTon.toFixed(0):'—';
+  const kwhFT2=simT2Funnel&&simT2Funnel.viavel?simT2Funnel.kwhPerTon.toFixed(0):'—';
+  html+=`<div style="background:${funnelMatch?'#E8F4FD':'#FFF4E5'};border:1px solid ${funnelMatch?'#2E75B6':'#F5B766'};border-radius:10px;padding:12px 14px;margin-bottom:14px">
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+      <div style="flex:1;min-width:260px">
+        <div style="font-weight:700;font-size:13px;color:${funnelMatch?'#2E75B6':'#8A5200'};margin-bottom:4px">
+          ${funnelMatch?'◉ Demanda do simulador = demanda do funil':'⚠ Simulador e funil estão dessincronizados'}
+        </div>
+        <div style="font-size:12px;color:var(--text-muted)">
+          Funil (linhas ativas): <b>T1 ${funnelF.T1.toFixed(1)} t/h</b> (${kwhFT1} kWh/ton) · <b>T2 ${funnelF.T2.toFixed(1)} t/h</b> (${kwhFT2} kWh/ton) · total <b>${funnelF.total.toFixed(1)} t/h</b> → ${funnelTotalDay} t/dia em ${s.hoursPerDay}h
+        </div>
+        <div style="font-size:12px;color:var(--text-muted);margin-top:2px">
+          Simulador: ${s.tonsPerDay} t/dia ÷ ${s.hoursPerDay}h = <b>${res.tph.toFixed(1)} t/h</b> ${funnelMatch?'':`<span style="color:#E74C3C">(Δ ${(funnelTotalDay-s.tonsPerDay).toFixed(0)} t/dia)</span>`}
+        </div>
+      </div>
+      <button class="btn" onclick="syncSimFromFunnel()" style="background:${funnelMatch?'#E5E7EB':'#F5B041'};color:${funnelMatch?'#6B7280':'#fff'};border:none;padding:8px 14px;font-weight:700;cursor:pointer">
+        ${funnelMatch?'Já sincronizado':'⟲ Usar demanda do funil'}
+      </button>
+    </div>
+  </div>`;
+
   // ---- CURVE CHART ----
   html+=`<div class="sim-chart-section">
     <div class="sim-chart-title">Curva de consumo específico por torre</div>
@@ -2171,15 +2204,6 @@ function renderSimulatorView(){
     <span class="sim-source-badge sim-source-${s.dataSource}">${s.dataSource==='real'?'◉ Dados reais (KQL)':'◯ Valores padrão (estimativa)'}</span>
   </div>`;
 
-  // ---- IMPORT REAL DATA (collapsible) ----
-  html+=`<div class="sim-params">
-    <div class="sim-params-header" onclick="toggleSimImport()">
-      <span>Importar dados reais do KQL ${s.showImport?'▼':'▶'}</span>
-      <span class="sim-params-hint">cole o resultado da query KQL (CSV) para ajustar as curvas</span>
-    </div>
-    ${s.showImport?buildSimImportPanel():''}
-  </div>`;
-
   // ---- TOWER PARAMETERS (collapsible) ----
   html+=`<div class="sim-params">
     <div class="sim-params-header" onclick="toggleSimParams()">
@@ -2189,7 +2213,13 @@ function renderSimulatorView(){
     ${s.showParams?buildSimParamsPanel():''}
   </div>`;
 
+  // ---- FUNIL: Torres → Linhas de embalagem (18 linhas) ----
+  html+=buildLinhasFunnel();
+
   ct.innerHTML=html;
+
+  // desenha as curvas do funil após o DOM estar pronto
+  setTimeout(drawLinhasLinks,30);
 }
 
 function buildSimParamsPanel(){
@@ -2412,6 +2442,29 @@ function buildSimulatorChart(res){
     svg+=`<text x="${sx(curX)}" y="${padT+10}" fill="#fff" font-size="10" text-anchor="middle" font-family="monospace" font-weight="600">${curX.toFixed(2)} t/h</text>`;
   }
 
+  // ===== Marcadores do FUNIL: carga real de cada torre vinda das linhas =====
+  const funnelLoads=computeFunnelLoads();
+  const funnelPoints=[
+    {key:'t1',load:funnelLoads.T1,color:colors.t1,tower:s.t1,label:'T1 funil'},
+    {key:'t2',load:funnelLoads.T2,color:colors.t2,tower:s.t2,label:'T2 funil'}
+  ];
+  funnelPoints.forEach((fp,idx)=>{
+    if(fp.load<=0) return;
+    if(fp.load<xMin||fp.load>xMax) return;
+    const r=simulateTower(fp.tower,fp.load,s.humidity,s.ambientTemp);
+    if(!r.viavel) return;
+    const fx=sx(fp.load), fy=sy(r.kwhPerTon);
+    // linha vertical tracejada na cor da torre
+    svg+=`<line x1="${fx}" y1="${padT}" x2="${fx}" y2="${padT+ch}" stroke="${fp.color}" stroke-width="1.2" stroke-dasharray="3,3" stroke-opacity="0.7"/>`;
+    // losango no ponto de operação
+    svg+=`<polygon points="${fx},${fy-7} ${fx+7},${fy} ${fx},${fy+7} ${fx-7},${fy}" fill="#fff" stroke="${fp.color}" stroke-width="2.5"/>`;
+    // etiqueta na base com badge
+    const labelY=padT+ch-6-(idx*16);
+    const labelW=82;
+    svg+=`<rect x="${fx-labelW/2}" y="${labelY-11}" width="${labelW}" height="14" rx="3" fill="${fp.color}" fill-opacity="0.92"/>`;
+    svg+=`<text x="${fx}" y="${labelY-1}" fill="#fff" font-size="9" text-anchor="middle" font-family="monospace" font-weight="700">${fp.label} ${fp.load.toFixed(1)}t/h</text>`;
+  });
+
   svg+=`</svg>`;
   return svg;
 }
@@ -2491,6 +2544,26 @@ function clearRealData(){
 function buildRadarChart(items){
   if(!items||items.length<2) return '<div style="padding:30px;color:var(--dim);text-align:center;font-size:13px">Selecione ao menos 2 equipamentos para comparar</div>';
 
+  // Helpers — buscam tags específicas dentro do equipamento (não apenas a tag primária)
+  const findTag=(eq,pred)=>{
+    const e=EQUIPMENT[eq.id];
+    if(!e||!e.tags) return null;
+    return e.tags.find(pred)||null;
+  };
+  const getCorrenteRaw=v=>{
+    const t=findTag(v,t=>t.unit==='A'&&(t.var.includes('Corrente')||t.var.includes('corrente')));
+    return t?Math.abs(t.value||0):0;
+  };
+  const getTemperaturaRaw=v=>{
+    const t=findTag(v,t=>t.unit==='°C'||t.var.includes('Temperatura'));
+    return t?Math.abs(t.value||0):0;
+  };
+  const getVibracaoRaw=v=>{
+    // Vibração: cartões VT expõem "Corrente Bits Cartão" em mA; também aceitamos tags com "Vibração"
+    const t=findTag(v,t=>(t.unit==='mA'&&t.var.includes('Corrente Bits'))||t.var.includes('Vibração')||t.var.includes('vibra'));
+    return t?Math.abs(t.value||0):0;
+  };
+
   // Dimensões genéricas normalizadas em % (funcionam para qualquer tipo de ativo)
   const data=items.map(v=>{
     const t=v.primaryTag||{};
@@ -2505,38 +2578,63 @@ function buildRadarChart(items){
       ideNorm:Math.min(((v.ide||1)-0.8)*500,100), // 0.8→0, 1.0→100
       cv:v.cv||0,
       amplitudePct:(t.max!=null&&t.min!=null&&nomAbs)?(Math.abs(t.max-t.min)/nomAbs)*100:0,
-      cargaPct:nomAbs?(valueAbs/nomAbs)*100:0
+      cargaPct:nomAbs?(valueAbs/nomAbs)*100:0,
+      correnteRaw:getCorrenteRaw(v),
+      temperaturaRaw:getTemperaturaRaw(v),
+      vibracaoRaw:getVibracaoRaw(v)
     };
   });
+
+  // Escalas dinâmicas para as grandezas físicas (topo do radar = maior valor da seleção com folga)
+  const maxCorrente=Math.max(...data.map(d=>d.correnteRaw),1)*1.1;
+  const maxTemperatura=Math.max(...data.map(d=>d.temperaturaRaw),1)*1.1;
+  const maxVibracao=Math.max(...data.map(d=>d.vibracaoRaw),1)*1.1;
 
   const dims=[
     {key:'desvioAbs',label:'Desvio %',max:Math.max(...data.map(d=>d.desvioAbs||0),15)*1.1},
     {key:'ideNorm',label:'IDE',max:100},
     {key:'cv',label:'Variabilidade',max:Math.max(...data.map(d=>d.cv||0),30)*1.1},
-    {key:'amplitudePct',label:'Amplitude %',max:Math.max(...data.map(d=>d.amplitudePct||0),50)*1.1},
-    {key:'cargaPct',label:'Carga %',max:Math.max(...data.map(d=>d.cargaPct||0),120)*1.1}
+    {key:'correnteRaw',label:'Corrente (A)',max:maxCorrente,unit:'A'},
+    {key:'temperaturaRaw',label:'Temperatura (°C)',max:maxTemperatura,unit:'°C'},
+    {key:'vibracaoRaw',label:'Vibração (mA)',max:maxVibracao,unit:'mA'}
   ];
   items=data;
-  const cx=220,cy=200,r=140;
+  const cx=260,cy=210,r=145;
   const n=dims.length;
   const colors=['#3b82f6','#f97316','#10b981','#8b5cf6'];
   const pt=(i,v)=>{
     const ang=-Math.PI/2+(i*2*Math.PI/n);
     return [cx+Math.cos(ang)*r*v,cy+Math.sin(ang)*r*v];
   };
-  let svg=`<svg class="radar-svg" viewBox="0 0 440 400" preserveAspectRatio="xMidYMid meet">`;
+  let svg=`<svg class="radar-svg" viewBox="0 0 520 440" preserveAspectRatio="xMidYMid meet">`;
   // grid rings
   for(let g=1;g<=4;g++){
     let pts='';
     for(let i=0;i<n;i++){const [x,y]=pt(i,g/4);pts+=`${x},${y} `;}
     svg+=`<polygon points="${pts.trim()}" fill="none" stroke="#e5e7eb" stroke-width="1"/>`;
   }
-  // axes
+  // axes + labels — anchor inteligente conforme o ângulo para evitar sobreposição
   for(let i=0;i<n;i++){
     const [x,y]=pt(i,1);
     svg+=`<line x1="${cx}" y1="${cy}" x2="${x}" y2="${y}" stroke="#e5e7eb" stroke-width="1"/>`;
-    const [lx,ly]=pt(i,1.15);
-    svg+=`<text x="${lx}" y="${ly}" fill="#475569" font-size="11" font-weight="600" text-anchor="middle" dominant-baseline="middle">${dims[i].label}</text>`;
+    const ang=-Math.PI/2+(i*2*Math.PI/n);
+    const cos=Math.cos(ang),sin=Math.sin(ang);
+    const [lx,ly]=[cx+cos*(r+22),cy+sin*(r+12)];
+    let anchor='middle';
+    if(cos>0.3) anchor='start';
+    else if(cos<-0.3) anchor='end';
+    let baseline='middle';
+    if(sin<-0.5) baseline='baseline';
+    else if(sin>0.5) baseline='hanging';
+    // Label em duas linhas se for grande (ex.: "Temperatura (°C)")
+    const lbl=dims[i].label;
+    const parts=lbl.split(' (');
+    if(parts.length===2){
+      svg+=`<text x="${lx}" y="${ly-6}" fill="#475569" font-size="10" font-weight="600" text-anchor="${anchor}" dominant-baseline="${baseline}">${parts[0]}</text>`;
+      svg+=`<text x="${lx}" y="${ly+7}" fill="#94a3b8" font-size="9" font-weight="500" text-anchor="${anchor}" dominant-baseline="${baseline}">(${parts[1]}</text>`;
+    }else{
+      svg+=`<text x="${lx}" y="${ly}" fill="#475569" font-size="10" font-weight="600" text-anchor="${anchor}" dominant-baseline="${baseline}">${lbl}</text>`;
+    }
   }
   // polygons
   items.slice(0,4).forEach((it,idx)=>{
@@ -2775,6 +2873,471 @@ function renderAlerts(){
   });
 
   return html;
+}
+
+// Rótulos amigáveis das chaves nominais
+const NOMINAL_LABELS={
+  corrente:{label:'Corrente Nominal',unit:'A',step:0.1},
+  speed:{label:'Velocidade Nominal',unit:'%',step:1},
+  rpm:{label:'RPM / Frequência',unit:'Hz',step:0.1},
+  temperatura:{label:'Temperatura',unit:'°C',step:1},
+  pressao:{label:'Pressão',unit:'mmH₂O',step:0.1},
+  vazao:{label:'Vazão',unit:'t/h',step:0.5},
+};
+// Estado de busca/filtros do painel de parâmetros
+const PARAM_PANEL_STATE={search:'',area:'all'};
+
+function updateEquipNominal(id,key,val){
+  const e=EQUIPMENT[id]; if(!e) return;
+  const num=parseFloat((val||'').toString().replace(',','.'));
+  if(isNaN(num)) return;
+  e.nominal=e.nominal||{};
+  e.nominal[key]=num;
+}
+function updateEquipTagValue(id,tagVar,val){
+  const e=EQUIPMENT[id]; if(!e) return;
+  const num=parseFloat((val||'').toString().replace(',','.'));
+  if(isNaN(num)) return;
+  const t=e.tags.find(t=>t.var===tagVar);
+  if(t) t.value=num;
+}
+function resetEquipNominal(id){
+  const orig=EQUIPMENT_INITIAL[id];
+  if(!orig||!EQUIPMENT[id]) return;
+  EQUIPMENT[id].nominal=JSON.parse(JSON.stringify(orig.nominal||{}));
+  // também restaura os valores das tags originais
+  if(orig.tags&&EQUIPMENT[id].tags){
+    orig.tags.forEach(ot=>{
+      const t=EQUIPMENT[id].tags.find(t=>t.var===ot.var);
+      if(t&&ot.value!=null) t.value=ot.value;
+    });
+  }
+  // re-render a aba
+  const el=document.getElementById('content');
+  if(el) el.innerHTML=renderImport();
+  attachHandlers();
+}
+function setParamPanelSearch(v){PARAM_PANEL_STATE.search=(v||'').toLowerCase();refreshParamPanel();}
+function setParamPanelArea(v){PARAM_PANEL_STATE.area=v||'all';refreshParamPanel();}
+function refreshParamPanel(){
+  const host=document.getElementById('param-panel-list');
+  if(host) host.innerHTML=buildParamPanelList();
+}
+function buildParamPanelList(){
+  const ids=Object.keys(EQUIPMENT);
+  const areas=Array.from(new Set(ids.map(id=>EQUIPMENT[id].area))).sort();
+  const q=PARAM_PANEL_STATE.search;
+  const areaFilter=PARAM_PANEL_STATE.area;
+  const filtered=ids.filter(id=>{
+    const e=EQUIPMENT[id];
+    if(areaFilter!=='all'&&e.area!==areaFilter) return false;
+    if(q){
+      const blob=(e.id+' '+e.name+' '+e.type+' '+e.area).toLowerCase();
+      if(!blob.includes(q)) return false;
+    }
+    return true;
+  });
+  // Agrupa por área
+  const groups={};
+  filtered.forEach(id=>{const a=EQUIPMENT[id].area;(groups[a]=groups[a]||[]).push(id);});
+  let html='';
+  if(filtered.length===0){
+    html+=`<div style="padding:30px;text-align:center;color:var(--dim);font-size:12px">Nenhum equipamento encontrado para os filtros aplicados.</div>`;
+    return html;
+  }
+  Object.keys(groups).sort().forEach(area=>{
+    html+=`<div style="margin-top:14px;margin-bottom:6px;font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:0.8px;padding-bottom:4px;border-bottom:1px solid var(--border)">${esc(area)} <span style="color:var(--dim);font-weight:500">· ${groups[area].length} equipamento${groups[area].length>1?'s':''}</span></div>`;
+    groups[area].forEach(id=>{
+      const e=EQUIPMENT[id];
+      const nomKeys=Object.keys(e.nominal||{});
+      const primaryTag=e.tags.find(t=>t.type==='analog')||e.tags[0];
+      const orig=EQUIPMENT_INITIAL[id];
+      const isInitial=!!orig;
+      html+=`<div style="margin:8px 0;padding:10px 12px;background:var(--bg2);border-radius:8px;border:1px solid var(--border)">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap">
+          <span class="mono" style="font-size:12px;font-weight:700;color:var(--accent);background:rgba(59,130,246,0.1);padding:3px 10px;border-radius:6px">${esc(id)}</span>
+          <span style="font-size:12px;font-weight:600;color:var(--text)">${esc(e.name)}</span>
+          <span style="font-size:10px;color:var(--dim);background:var(--bg);padding:2px 8px;border-radius:4px">${esc(e.type)}</span>
+          <span style="font-size:10px;color:var(--dim)">PLC: ${esc(e.plc||'—')}</span>
+          ${isInitial?`<button onclick="resetEquipNominal('${esc(id)}')" title="Restaurar valores padrão deste equipamento" style="margin-left:auto;background:transparent;color:var(--dim);border:1px solid var(--border);padding:3px 10px;border-radius:5px;font-size:10px;cursor:pointer">↺ restaurar</button>`:''}
+        </div>`;
+      // Campos nominais
+      if(nomKeys.length>0){
+        html+=`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px">`;
+        nomKeys.forEach(k=>{
+          const meta=NOMINAL_LABELS[k]||{label:k,unit:'',step:0.1};
+          const v=e.nominal[k];
+          html+=`<div>
+            <label style="font-size:9px;color:var(--dim);text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:3px">${esc(meta.label)}</label>
+            <div style="display:flex;align-items:center;gap:4px">
+              <input type="number" value="${v}" step="${meta.step}" onchange="updateEquipNominal('${esc(id)}','${esc(k)}',this.value)" style="flex:1;min-width:0;padding:6px 8px;background:var(--bg);border:1px solid var(--border);border-radius:5px;color:var(--text);font-family:'SF Mono',monospace;font-size:12px">
+              <span style="font-size:10px;color:var(--dim);min-width:26px">${esc(meta.unit)}</span>
+            </div>
+          </div>`;
+        });
+        html+=`</div>`;
+      }else{
+        html+=`<div style="font-size:10px;color:var(--dim);font-style:italic">Sem parâmetros nominais definidos</div>`;
+      }
+      // Valor atual da tag primária (editável)
+      if(primaryTag){
+        html+=`<div style="margin-top:8px;padding-top:8px;border-top:1px dashed var(--border);display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px">`;
+        // Mostra até 3 tags analog mais relevantes
+        const analogTags=e.tags.filter(t=>t.type==='analog').slice(0,3);
+        analogTags.forEach(t=>{
+          html+=`<div>
+            <label style="font-size:9px;color:var(--dim);text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:3px">${esc(t.var)} <span style="color:var(--accent);text-transform:none">· leitura</span></label>
+            <div style="display:flex;align-items:center;gap:4px">
+              <input type="number" value="${t.value}" step="0.01" onchange="updateEquipTagValue('${esc(id)}','${esc(t.var).replace(/'/g,'&#39;')}',this.value)" style="flex:1;min-width:0;padding:6px 8px;background:var(--bg);border:1px solid var(--border);border-radius:5px;color:var(--text);font-family:'SF Mono',monospace;font-size:12px">
+              <span style="font-size:10px;color:var(--dim);min-width:26px">${esc(t.unit||'')}</span>
+            </div>
+            <div style="font-size:9px;color:var(--dim);margin-top:2px">min ${fmt(t.min)} · max ${fmt(t.max)} · n=${t.n||0}</div>
+          </div>`;
+        });
+        html+=`</div>`;
+      }
+      html+=`</div>`;
+    });
+  });
+  return html;
+}
+
+// ============================================================
+// LINHAS DE EMBALAGEM  →  TORRES (prova de conceito)
+// 9 linhas de pó + 9 linhas de cartucho de pó (caixas) = 18
+// Valores são placeholders até receber os dados reais.
+// ============================================================
+const LINES_STATE={
+  lines:[
+    // 9 linhas de pó (embalagem direta de pó em sachê/saco)
+    {id:'LP01',name:'Linha Pó 01',type:'po',capacity:5.0,towers:['T1'],active:true},
+    {id:'LP02',name:'Linha Pó 02',type:'po',capacity:5.0,towers:['T1'],active:true},
+    {id:'LP03',name:'Linha Pó 03',type:'po',capacity:4.5,towers:['T1'],active:true},
+    {id:'LP04',name:'Linha Pó 04',type:'po',capacity:4.5,towers:['T1','T2'],active:true},
+    {id:'LP05',name:'Linha Pó 05',type:'po',capacity:4.0,towers:['T2'],active:true},
+    {id:'LP06',name:'Linha Pó 06',type:'po',capacity:4.0,towers:['T2'],active:true},
+    {id:'LP07',name:'Linha Pó 07',type:'po',capacity:3.5,towers:['T2'],active:true},
+    {id:'LP08',name:'Linha Pó 08',type:'po',capacity:3.5,towers:['T1'],active:false},
+    {id:'LP09',name:'Linha Pó 09',type:'po',capacity:3.0,towers:['T2'],active:false},
+    // 9 linhas de cartucho de pó (caixas de sabão em pó)
+    {id:'LC01',name:'Cartucho 01',type:'cartucho',capacity:3.0,towers:['T1'],active:true},
+    {id:'LC02',name:'Cartucho 02',type:'cartucho',capacity:3.0,towers:['T1'],active:true},
+    {id:'LC03',name:'Cartucho 03',type:'cartucho',capacity:2.8,towers:['T1'],active:true},
+    {id:'LC04',name:'Cartucho 04',type:'cartucho',capacity:2.8,towers:['T2'],active:true},
+    {id:'LC05',name:'Cartucho 05',type:'cartucho',capacity:2.5,towers:['T2'],active:true},
+    {id:'LC06',name:'Cartucho 06',type:'cartucho',capacity:2.5,towers:['T2'],active:true},
+    {id:'LC07',name:'Cartucho 07',type:'cartucho',capacity:2.2,towers:['T1','T2'],active:true},
+    {id:'LC08',name:'Cartucho 08',type:'cartucho',capacity:2.0,towers:['T1'],active:false},
+    {id:'LC09',name:'Cartucho 09',type:'cartucho',capacity:2.0,towers:['T2'],active:false},
+  ],
+  towerCapacity:{T1:25.0,T2:25.0} // capacidade nominal em ton/h por torre
+};
+
+// Calcula a demanda agregada do funil por torre.
+// Se uma linha alimenta 2 torres, divide a capacidade igualmente entre elas.
+function computeFunnelLoads(){
+  const load={T1:0,T2:0};
+  const linesPerTower={T1:0,T2:0};
+  let orphans=0;
+  LINES_STATE.lines.forEach(l=>{
+    if(!l.active) return;
+    if(l.towers.length===0){orphans++;return;}
+    const share=l.capacity/l.towers.length;
+    l.towers.forEach(t=>{load[t]+=share;linesPerTower[t]++;});
+  });
+  return {
+    T1:load.T1,T2:load.T2,
+    linesT1:linesPerTower.T1,linesT2:linesPerTower.T2,
+    total:load.T1+load.T2,
+    orphans,
+    capT1:LINES_STATE.towerCapacity.T1,
+    capT2:LINES_STATE.towerCapacity.T2
+  };
+}
+
+function refreshFunnel(){
+  // re-renderiza o Simulador inteiro (o funil está dentro dele)
+  if(document.getElementById('simulatorView')) renderSimulatorView();
+}
+
+// Puxa a demanda atual do funil para os inputs do simulador
+function syncSimFromFunnel(){
+  const f=computeFunnelLoads();
+  const s=SIMULATOR_STATE;
+  // total ton/dia = (T1+T2) * horas operacionais
+  s.tonsPerDay=Math.round(f.total*s.hoursPerDay);
+  s.dataSource='real';
+  renderSimulatorView();
+}
+function toggleLineTower(lineId,tower){
+  const l=LINES_STATE.lines.find(x=>x.id===lineId); if(!l) return;
+  const i=l.towers.indexOf(tower);
+  if(i>=0) l.towers.splice(i,1); else l.towers.push(tower);
+  refreshFunnel();
+}
+function toggleLineActive(lineId){
+  const l=LINES_STATE.lines.find(x=>x.id===lineId); if(!l) return;
+  l.active=!l.active;
+  refreshFunnel();
+}
+function setLineCapacity(lineId,val){
+  const l=LINES_STATE.lines.find(x=>x.id===lineId); if(!l) return;
+  l.capacity=Math.max(0,parseFloat(val)||0);
+  refreshFunnel();
+}
+function setAllLinesActive(val){
+  LINES_STATE.lines.forEach(l=>{l.active=!!val;});
+  refreshFunnel();
+}
+function resetLinesDemo(){
+  LINES_STATE.lines.forEach(l=>{l.active=true;});
+  refreshFunnel();
+}
+
+function buildLinhasFunnel(){
+  const lines=LINES_STATE.lines;
+  const active=lines.filter(l=>l.active);
+  const inactive=lines.filter(l=>!l.active);
+
+  const f=computeFunnelLoads();
+  const load={T1:f.T1,T2:f.T2};
+  const linesPerTower={T1:f.linesT1,T2:f.linesT2};
+  const capT1=f.capT1, capT2=f.capT2;
+  const pctT1=capT1?(load.T1/capT1*100):0;
+  const pctT2=capT2?(load.T2/capT2*100):0;
+  const totalLoad=f.total;
+  const orphans=f.orphans;
+  const pctColor=p=>p>100?'#E74C3C':p>85?'#F5B041':'#28A745';
+
+  // === Conexão com o simulador ===
+  // Calcula o consumo de cada torre NO ponto onde o funil a está operando
+  // (usa a mesma função do simulador com a mesma umidade e temperatura)
+  const s=SIMULATOR_STATE;
+  const simT1=load.T1>0?simulateTower(s.t1,load.T1,s.humidity,s.ambientTemp):null;
+  const simT2=load.T2>0?simulateTower(s.t2,load.T2,s.humidity,s.ambientTemp):null;
+  const kwhT1=(simT1&&simT1.viavel)?simT1.kwhPerTon:null;
+  const kwhT2=(simT2&&simT2.viavel)?simT2.kwhPerTon:null;
+  const statusT1=simT1?(simT1.viavel?'ok':'fora'):'off';
+  const statusT2=simT2?(simT2.viavel?'ok':'fora'):'off';
+
+  const renderLineMini=l=>{
+    const isT1=l.towers.includes('T1'), isT2=l.towers.includes('T2');
+    const badgeColor=l.active?(isT1&&isT2?'#8E44AD':isT1?'#2E75B6':isT2?'#28A745':'#BDC3C7'):'#E5E7EB';
+    const statusBg=l.active?'#D4EDDA':'#FADBD8';
+    const statusTxt=l.active?'#155724':'#721C24';
+    return `
+      <div class="line-card" data-line-id="${l.id}" style="border:2px solid ${l.active?badgeColor:'#E5E7EB'};border-radius:9px;padding:8px;background:${l.active?'#fff':'#F8F9FA'};opacity:${l.active?1:0.6};transition:all .2s;min-width:0">
+        <div style="display:flex;justify-content:space-between;align-items:start;gap:4px;margin-bottom:4px">
+          <div style="min-width:0">
+            <div style="font-weight:700;font-size:11.5px;color:${l.active?'#212B36':'#9CA3AF'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${l.name}</div>
+            <div style="font-size:9px;color:var(--text-muted);font-family:monospace">${l.id}</div>
+          </div>
+          <label title="Ativar/desativar" style="font-size:9px;display:flex;align-items:center;cursor:pointer;background:${statusBg};color:${statusTxt};padding:2px 6px;border-radius:9px;font-weight:700;white-space:nowrap">
+            <input type="checkbox" ${l.active?'checked':''} onchange="toggleLineActive('${l.id}')" style="margin:0 3px 0 0;transform:scale(.8)">
+            ${l.active?'ON':'OFF'}
+          </label>
+        </div>
+        <div style="display:flex;gap:3px;margin:4px 0">
+          <button onclick="toggleLineTower('${l.id}','T1')" style="flex:1;padding:3px 4px;border-radius:5px;border:1px solid ${isT1?'#2E75B6':'#E5E7EB'};background:${isT1?'#2E75B6':'#fff'};color:${isT1?'#fff':'#6B7280'};font-size:10px;font-weight:700;cursor:pointer">T1</button>
+          <button onclick="toggleLineTower('${l.id}','T2')" style="flex:1;padding:3px 4px;border-radius:5px;border:1px solid ${isT2?'#28A745':'#E5E7EB'};background:${isT2?'#28A745':'#fff'};color:${isT2?'#fff':'#6B7280'};font-size:10px;font-weight:700;cursor:pointer">T2</button>
+        </div>
+        <div style="display:flex;align-items:center;gap:3px;font-size:10px;color:var(--text-muted)">
+          <input type="number" step="0.1" value="${l.capacity}" onchange="setLineCapacity('${l.id}',this.value)" style="width:100%;padding:1px 3px;font-size:10px;border:1px solid #E5E7EB;border-radius:3px;text-align:right">
+          <span>t/h</span>
+        </div>
+      </div>
+    `;
+  };
+
+  const poLines=lines.filter(l=>l.type==='po');
+  const cartuchoLines=lines.filter(l=>l.type==='cartucho');
+  const poAct=poLines.filter(l=>l.active).length;
+  const cartAct=cartuchoLines.filter(l=>l.active).length;
+
+  return `
+    <div class="card" style="border:1px solid var(--accent);margin-top:16px">
+      <div class="card-title">Funil de Distribuição — Torres → Linhas de Embalagem
+        <span class="sub">qual torre alimenta cada linha de embalagem</span>
+      </div>
+
+      <div style="background:#FFF4E5;border:1px solid #F5B766;border-radius:8px;padding:8px 12px;color:#8A5200;font-size:11.5px;margin-bottom:12px">
+        <b>⚠ Protótipo:</b> 18 linhas placeholder (9 pó + 9 cartucho de pó/caixas). Substituo pelos dados reais quando chegarem.
+      </div>
+
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+        <button class="btn" onclick="setAllLinesActive(true)">Ativar todas</button>
+        <button class="btn" onclick="setAllLinesActive(false)">Desativar todas</button>
+        <button class="btn" onclick="resetLinesDemo()">Restaurar padrão</button>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px;margin-bottom:14px">
+        <div class="kpi-card"><div class="kpi-label">Linhas ativas</div><div class="kpi-value">${active.length}/${lines.length}</div><div class="kpi-hint">${inactive.length} inativa(s)</div></div>
+        <div class="kpi-card"><div class="kpi-label">Produção total</div><div class="kpi-value">${totalLoad.toFixed(1)} <span style="font-size:12px">t/h</span></div><div class="kpi-hint">somando T1 + T2</div></div>
+        <div class="kpi-card"><div class="kpi-label">Torre 1</div><div class="kpi-value" style="color:${pctColor(pctT1)}">${load.T1.toFixed(1)} <span style="font-size:12px">t/h</span></div><div class="kpi-hint">${linesPerTower.T1} linhas · ${pctT1.toFixed(0)}% cap.</div></div>
+        <div class="kpi-card"><div class="kpi-label">Torre 2</div><div class="kpi-value" style="color:${pctColor(pctT2)}">${load.T2.toFixed(1)} <span style="font-size:12px">t/h</span></div><div class="kpi-hint">${linesPerTower.T2} linhas · ${pctT2.toFixed(0)}% cap.</div></div>
+        ${orphans>0?`<div class="kpi-card" style="border:1px solid #E74C3C"><div class="kpi-label" style="color:#E74C3C">⚠ Sem torre</div><div class="kpi-value" style="color:#E74C3C">${orphans}</div><div class="kpi-hint">ativa(s) sem torre</div></div>`:''}
+      </div>
+
+      <!-- FUNIL: topo estreito com 2 torres, base larga com 18 linhas -->
+      <div id="linhas-layout" style="position:relative">
+        <svg id="linhas-svg" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0"></svg>
+
+        <!-- NÍVEL 1: duas torres centralizadas (boca do funil) -->
+        <div style="position:relative;z-index:1;display:flex;justify-content:center;gap:30px;margin-bottom:22px">
+          <div class="card" id="tower-T1-card" style="border:3px solid #2E75B6;padding:14px 20px;min-width:230px;text-align:center;background:linear-gradient(180deg,#EAF3FB 0%,#fff 100%)">
+            <div style="font-weight:800;font-size:18px;color:#2E75B6;letter-spacing:.5px">TORRE 1</div>
+            <div style="font-size:10px;color:var(--text-muted);margin-bottom:6px">Spray Dryer T1</div>
+            <div style="font-size:26px;font-weight:800;color:${pctColor(pctT1)}">${load.T1.toFixed(1)} <span style="font-size:12px;font-weight:500">t/h</span></div>
+            <div style="font-size:10px;color:var(--text-muted)">${linesPerTower.T1} linhas · ${pctT1.toFixed(0)}% de ${capT1} t/h</div>
+            <div style="margin-top:6px;height:6px;background:#E5E7EB;border-radius:3px;overflow:hidden">
+              <div style="width:${Math.min(100,pctT1)}%;height:100%;background:${pctColor(pctT1)};transition:width .3s"></div>
+            </div>
+            <div style="margin-top:8px;padding-top:6px;border-top:1px dashed #D1D5DB;font-size:11px">
+              ${statusT1==='off'?'<span style="color:#94a3b8">sem demanda</span>':
+                statusT1==='fora'?'<span style="color:#E74C3C;font-weight:700">⚠ fora da faixa do simulador</span>':
+                `<span style="color:#2E75B6;font-weight:700">${kwhT1.toFixed(0)} kWh/ton</span> <span style="color:var(--text-muted)">@ ${load.T1.toFixed(1)} t/h</span>`}
+            </div>
+          </div>
+          <div class="card" id="tower-T2-card" style="border:3px solid #28A745;padding:14px 20px;min-width:230px;text-align:center;background:linear-gradient(180deg,#E8F6EC 0%,#fff 100%)">
+            <div style="font-weight:800;font-size:18px;color:#28A745;letter-spacing:.5px">TORRE 2</div>
+            <div style="font-size:10px;color:var(--text-muted);margin-bottom:6px">Spray Dryer T2</div>
+            <div style="font-size:26px;font-weight:800;color:${pctColor(pctT2)}">${load.T2.toFixed(1)} <span style="font-size:12px;font-weight:500">t/h</span></div>
+            <div style="font-size:10px;color:var(--text-muted)">${linesPerTower.T2} linhas · ${pctT2.toFixed(0)}% de ${capT2} t/h</div>
+            <div style="margin-top:6px;height:6px;background:#E5E7EB;border-radius:3px;overflow:hidden">
+              <div style="width:${Math.min(100,pctT2)}%;height:100%;background:${pctColor(pctT2)};transition:width .3s"></div>
+            </div>
+            <div style="margin-top:8px;padding-top:6px;border-top:1px dashed #D1D5DB;font-size:11px">
+              ${statusT2==='off'?'<span style="color:#94a3b8">sem demanda</span>':
+                statusT2==='fora'?'<span style="color:#E74C3C;font-weight:700">⚠ fora da faixa do simulador</span>':
+                `<span style="color:#28A745;font-weight:700">${kwhT2.toFixed(0)} kWh/ton</span> <span style="color:var(--text-muted)">@ ${load.T2.toFixed(1)} t/h</span>`}
+            </div>
+          </div>
+        </div>
+
+        <!-- espaço para as curvas do funil -->
+        <div style="height:46px"></div>
+
+        <!-- NÍVEL 2: base larga do funil com as 18 linhas -->
+        <div style="position:relative;z-index:1;display:flex;flex-direction:column;gap:12px">
+          <div class="card" style="padding:10px 12px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+              <div style="font-weight:700;font-size:13px;color:#2E75B6">Pó (9 linhas)</div>
+              <div style="font-size:10px;color:var(--text-muted)">${poAct} ativa(s) de ${poLines.length}</div>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(9,minmax(0,1fr));gap:6px">
+              ${poLines.map(renderLineMini).join('')}
+            </div>
+          </div>
+          <div class="card" style="padding:10px 12px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+              <div style="font-weight:700;font-size:13px;color:#9B59B6">Cartucho de Pó — Caixas (9 linhas)</div>
+              <div style="font-size:10px;color:var(--text-muted)">${cartAct} ativa(s) de ${cartuchoLines.length}</div>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(9,minmax(0,1fr));gap:6px">
+              ${cartuchoLines.map(renderLineMini).join('')}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function drawLinhasLinks(){
+  const svg=document.getElementById('linhas-svg');
+  const layout=document.getElementById('linhas-layout');
+  if(!svg||!layout) return;
+  const svgRect=svg.getBoundingClientRect();
+  svg.setAttribute('width',svgRect.width);
+  svg.setAttribute('height',svgRect.height);
+  svg.innerHTML='';
+
+  const towerT1=document.getElementById('tower-T1-card');
+  const towerT2=document.getElementById('tower-T2-card');
+  if(!towerT1||!towerT2) return;
+  const t1r=towerT1.getBoundingClientRect();
+  const t2r=towerT2.getBoundingClientRect();
+  // ponto de saída das torres = centro inferior (funil de cima para baixo)
+  const tp={
+    T1:{x:t1r.left+t1r.width/2-svgRect.left,y:t1r.bottom-svgRect.top},
+    T2:{x:t2r.left+t2r.width/2-svgRect.left,y:t2r.bottom-svgRect.top}
+  };
+  const tColor={T1:'#2E75B6',T2:'#28A745'};
+
+  LINES_STATE.lines.forEach(l=>{
+    if(!l.active||l.towers.length===0) return;
+    const card=document.querySelector(`[data-line-id="${l.id}"]`);
+    if(!card) return;
+    const cr=card.getBoundingClientRect();
+    const lp={x:cr.left+cr.width/2-svgRect.left,y:cr.top-svgRect.top};
+    l.towers.forEach(t=>{
+      const sp=tp[t]; if(!sp) return;
+      // curva vertical: controle no meio do caminho
+      const midY=(sp.y+lp.y)/2;
+      const d=`M ${sp.x} ${sp.y} C ${sp.x} ${midY}, ${lp.x} ${midY}, ${lp.x} ${lp.y}`;
+      const path=document.createElementNS('http://www.w3.org/2000/svg','path');
+      path.setAttribute('d',d);
+      path.setAttribute('fill','none');
+      path.setAttribute('stroke',tColor[t]);
+      path.setAttribute('stroke-width','2');
+      path.setAttribute('stroke-opacity','0.5');
+      path.setAttribute('stroke-linecap','round');
+      svg.appendChild(path);
+      // dot na torre
+      const dot=document.createElementNS('http://www.w3.org/2000/svg','circle');
+      dot.setAttribute('cx',sp.x); dot.setAttribute('cy',sp.y);
+      dot.setAttribute('r','3'); dot.setAttribute('fill',tColor[t]);
+      svg.appendChild(dot);
+    });
+  });
+}
+// redesenha paths ao redimensionar (funil dentro do Simulador)
+window.addEventListener('resize',()=>{
+  if(document.getElementById('linhas-svg')) drawLinhasLinks();
+});
+
+function renderParams(){
+  const totalEquip=Object.keys(EQUIPMENT).length;
+  const areas=Array.from(new Set(Object.keys(EQUIPMENT).map(id=>EQUIPMENT[id].area))).sort();
+  const groups={};
+  Object.keys(EQUIPMENT).forEach(id=>{const a=EQUIPMENT[id].area;(groups[a]=groups[a]||[]).push(id);});
+  const typesSet=new Set(Object.keys(EQUIPMENT).map(id=>EQUIPMENT[id].type));
+  return `
+    <div class="card" style="border:1px solid var(--accent)">
+      <div class="card-title" style="display:flex;align-items:center;gap:10px">
+        <span style="font-size:18px">⚙️</span> Parâmetros dos Equipamentos
+        <span style="font-size:11px;color:var(--dim);font-weight:500">edite valores nominais e leituras &middot; ${totalEquip} equipamentos &middot; ${areas.length} áreas</span>
+      </div>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.6">
+        Ajuste os valores nominais usados nos cálculos de desvio (nominal vs atual), custo, alertas e previsão de energia.
+        As leituras correntes também podem ser corrigidas manualmente antes de um novo import KQL. Alterações são aplicadas na hora &mdash; basta trocar de aba para ver o impacto nos gráficos.
+      </p>
+      <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap">
+        <input type="text" placeholder="Buscar por TAG, nome, tipo..." oninput="setParamPanelSearch(this.value)" style="flex:1;min-width:200px;padding:9px 12px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px">
+        <select onchange="setParamPanelArea(this.value)" style="padding:9px 12px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;min-width:180px">
+          <option value="all">Todas as áreas (${totalEquip})</option>
+          ${areas.map(a=>`<option value="${esc(a)}">${esc(a)} (${(groups[a]||[]).length})</option>`).join('')}
+        </select>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;padding:10px 12px;background:var(--bg2);border-radius:8px">
+        <div style="font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:0.5px;align-self:center;margin-right:6px">Tipos presentes:</div>
+        ${Array.from(typesSet).sort().map(t=>`<span style="font-size:10px;color:var(--muted);background:var(--bg);padding:3px 9px;border-radius:4px;border:1px solid var(--border)">${esc(t)}</span>`).join('')}
+      </div>
+      <div id="param-panel-list" style="max-height:68vh;overflow-y:auto;padding-right:6px">${buildParamPanelList()}</div>
+    </div>
+
+    <div class="card">
+      <div class="card-title" style="display:flex;align-items:center;gap:10px">
+        <span style="font-size:18px">💡</span> Dicas de uso
+      </div>
+      <div style="font-size:12px;color:var(--muted);line-height:1.7">
+        <strong style="color:var(--text)">Nominal vs Leitura:</strong> o valor nominal é o ponto de operação esperado (placa do motor, setpoint de projeto). A leitura é o valor medido atual. O desvio % é calculado como <code style="background:var(--bg2);padding:2px 6px;border-radius:4px;font-size:11px">(leitura − nominal) / nominal × 100</code>.<br><br>
+        <strong style="color:var(--text)">Restaurar:</strong> cada card tem um botão "↺ restaurar" que volta os valores daquele equipamento específico para os originais, sem afetar os outros.<br><br>
+        <strong style="color:var(--text)">Limpar tudo:</strong> para restaurar o estado completo da planta (todos os equipamentos + imports), use o botão "Limpar Todos os Dados" na aba Configurações.<br><br>
+        <strong style="color:var(--yellow)">Persistência:</strong> as alterações ficam apenas nesta sessão do navegador. Para manter, exporte novamente via KQL ou use o import de CSV depois de validar os valores aqui.
+      </div>
+    </div>
+  `;
 }
 
 function renderImport(){
