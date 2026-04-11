@@ -886,11 +886,11 @@ function switchTab(tab){
 function render(){
   const el=document.getElementById('content');
   switch(currentTab){
-    case 'overview': el.innerHTML=renderOverview(); break;
+    case 'overview': el.innerHTML=renderOverview(); renderTop5Drilldown(); renderParetoDrilldown(); break;
     case 'caldeira': el.innerHTML=renderCaldeira(); break;
     case 'ventiladores': el.innerHTML=renderVentiladores(); break;
     case 'bombas': el.innerHTML=renderBombas(); break;
-    case 'analysis': el.innerHTML=renderAnalysis(); renderRadarDrilldown(); break;
+    case 'analysis': el.innerHTML=renderAnalysis(); renderRadarDrilldown(); renderHeatmapDrilldown(); break;
     case 'alerts': el.innerHTML=renderAlerts(); break;
     case 'import': el.innerHTML=renderImport(); break;
   }
@@ -924,154 +924,17 @@ function renderOverview(){
   });
   html+=`</div>`;
 
-  // Top 5 — Desvio Nominal vs Atual (gradient bars, sem financeiro)
-  const perdaList=Object.keys(EQUIPMENT).map(id=>{
-    const a=getEquipAnalysis(id);
-    if(!a||a.desvio===null) return null;
-    const e=EQUIPMENT[id];
-    return {
-      id,
-      name:e.name,
-      area:e.area,
-      desvio:a.desvio,
-      desvioAbs:Math.abs(a.desvio),
-      nominal:a.nomVal,
-      atual:a.primaryTag.value,
-      delta:a.primaryTag.value-a.nomVal,
-      unit:a.primaryTag.unit||''
-    };
-  }).filter(Boolean).sort((a,b)=>b.desvioAbs-a.desvioAbs).slice(0,5);
-  if(perdaList.length>0){
-    html+=`<div class="card"><div class="card-title">Top 5 — Desvio Nominal vs Atual <span class="sub">equipamentos com maior afastamento do valor de referência</span></div><div class="fin-list">`;
-    const maxDesvio=perdaList[0].desvioAbs;
-    perdaList.forEach(p=>{
-      const barPct=maxDesvio>0?(p.desvioAbs/maxDesvio*100):0;
-      const col=sColor(p.desvio);
-      html+=`<div class="fin-row" onclick="openModal('${p.id}')">
-        <div class="fin-tag mono">${esc(p.id)}</div>
-        <div>
-          <div class="fin-name">${esc(p.name)}</div>
-          <div class="fin-name-sub">${esc(p.area||'')}</div>
-        </div>
-        <div class="fin-bar-wrap">
-          <div class="fin-bar-track"><div class="fin-bar-fill" style="width:${barPct}%"></div></div>
-        </div>
-        <div class="fin-value">
-          <div class="fin-value-main mono" style="color:${col}">${p.desvio>0?'+':''}${p.desvio.toFixed(1)}%</div>
-          <div class="fin-value-sub">nominal ${fmt(p.nominal)}${p.unit?' '+p.unit:''} · atual ${fmt(p.atual)}${p.unit?' '+p.unit:''}</div>
-        </div>
-      </div>`;
-    });
-    html+=`</div></div>`;
-  }
+  // Top 5 — Desvio Nominal vs Atual (com drill-down por área)
+  html+=`<div class="card"><div class="card-title">Top 5 — Desvio Nominal vs Atual <span class="sub">filtre por área para ver o ranking local</span></div>
+    <div id="top5Container"></div>
+  </div>`;
 
   // Fan bar chart removed from overview — available in Ventiladores tab
 
-  // PARETO — Áreas Críticas por Desvio
-  const paretoData={};
-  analyses.forEach(x=>{
-    if(x.desvio===null) return;
-    const e=EQUIPMENT[x.id];
-    const area=e.type||e.area||'Outros';
-    if(!paretoData[area]) paretoData[area]={area,critico:0,alerta:0,atencao:0,normal:0,total:0};
-    const abs=Math.abs(x.desvio);
-    if(abs>15) paretoData[area].critico++;
-    else if(abs>10) paretoData[area].alerta++;
-    else if(abs>5) paretoData[area].atencao++;
-    else paretoData[area].normal++;
-    paretoData[area].total++;
-  });
-  const paretoArr=Object.values(paretoData).map(a=>({...a,desvios:a.critico+a.alerta+a.atencao})).sort((a,b)=>b.desvios-a.desvios||b.critico-a.critico);
-  const maxDesvios=Math.max(...paretoArr.map(a=>a.desvios),1);
-  const totalDesvios=paretoArr.reduce((s,a)=>s+a.desvios,0);
-
-  if(paretoArr.length>0 && totalDesvios>0){
-    let cumPct=0;
-    html+=`<div class="card"><div class="card-title">Pareto — Equipamentos Críticos por Tipo <span style="font-size:10px;color:var(--dim);font-weight:400;margin-left:8px">Clique para expandir</span></div><div class="pareto-container">`;
-    paretoArr.forEach(a=>{
-      if(a.desvios===0) return;
-      const pct=totalDesvios>0?(a.desvios/totalDesvios*100):0;
-      cumPct+=pct;
-      const barW=(a.desvios/maxDesvios*100);
-      const critW=a.desvios>0?(a.critico/a.desvios*barW):0;
-      const alertW=a.desvios>0?(a.alerta/a.desvios*barW):0;
-      const atencW=a.desvios>0?(a.atencao/a.desvios*barW):0;
-      const safeType=esc(a.area).replace(/[^a-zA-Z0-9]/g,'_');
-      html+=`<div class="pareto-row" data-pareto-type="${esc(a.area)}" onclick="toggleParetoDetail('${safeType}')">
-        <div class="pareto-label">${esc(a.area)} <span style="font-size:8px;color:var(--accent)">▶</span></div>
-        <div class="pareto-bar-wrap">
-          <div class="pareto-bar-track">
-            <div style="display:flex;height:100%">
-              ${a.critico>0?`<div class="pareto-bar-fill" style="width:${critW}%;background:var(--red)"><span class="pareto-bar-count">${a.critico}</span></div>`:''}
-              ${a.alerta>0?`<div class="pareto-bar-fill" style="width:${alertW}%;background:var(--orange)"><span class="pareto-bar-count">${a.alerta}</span></div>`:''}
-              ${a.atencao>0?`<div class="pareto-bar-fill" style="width:${atencW}%;background:var(--yellow)"><span class="pareto-bar-count">${a.atencao}</span></div>`:''}
-            </div>
-          </div>
-          <div class="pareto-pct mono">${fmt(cumPct,0)}%</div>
-        </div>
-      </div>`;
-      // Expandable detail panel
-      const typeEquips=ids.filter(k=>EQUIPMENT[k].type===a.area||EQUIPMENT[k].area===a.area);
-      const typeAnalyses=typeEquips.map(k=>{const an=getEquipAnalysis(k);return an?{id:k,...EQUIPMENT[k],...an}:null;}).filter(Boolean).sort((x,y)=>{
-        const ax=x.desvio!==null?Math.abs(x.desvio):0;const ay=y.desvio!==null?Math.abs(y.desvio):0;return ay-ax;});
-      const avgDesvio=typeAnalyses.filter(x=>x.desvio!==null).length>0?(typeAnalyses.filter(x=>x.desvio!==null).reduce((s,x)=>s+Math.abs(x.desvio),0)/typeAnalyses.filter(x=>x.desvio!==null).length):0;
-      const worst=typeAnalyses.length>0?typeAnalyses[0]:null;
-      const worstColor=worst?sColor(worst.desvio):'var(--dim)';
-      const insightClass=a.critico>0?'critical':a.alerta>0?'warning':'ok';
-      html+=`<div class="pareto-detail" id="pareto-${safeType}">
-        <div class="pareto-detail-header">
-          <div class="pareto-detail-title">${esc(a.area)} — ${typeEquips.length} equipamento${typeEquips.length>1?'s':''}</div>
-          <div class="pareto-detail-summary">
-            <span style="color:var(--red)">■ ${a.critico} crítico${a.critico!==1?'s':''}</span>
-            <span style="color:var(--orange)">■ ${a.alerta} alerta${a.alerta!==1?'s':''}</span>
-            <span style="color:var(--yellow)">■ ${a.atencao} atenção</span>
-            <span style="color:var(--green)">■ ${a.normal} normal</span>
-          </div>
-        </div>
-        <table class="pareto-equip-table"><thead><tr>
-          <th style="text-align:left">TAG</th><th style="text-align:left">Equipamento</th>
-          <th style="text-align:right">Atual</th><th style="text-align:right">Nominal</th>
-          <th style="text-align:right">Desvio</th><th style="text-align:right">IDE</th>
-          <th style="text-align:right">CV%</th><th style="text-align:center">Status</th><th>Desvio</th>
-        </tr></thead><tbody>`;
-      typeAnalyses.forEach(item=>{
-        const ic=sColor(item.desvio);
-        const absD=item.desvio!==null?Math.abs(item.desvio):0;
-        const barPct=Math.min(absD/30*100,100);
-        html+=`<tr data-equip="${item.id}">
-          <td class="mono equip-link">${esc(item.id)}</td>
-          <td style="color:var(--text)">${esc(item.name)}</td>
-          <td class="mono" style="text-align:right;font-weight:700">${item.primaryTag?fmt(item.primaryTag.value):'—'}<span style="font-size:9px;color:var(--dim)">${item.primaryTag?item.primaryTag.unit:''}</span></td>
-          <td class="mono" style="text-align:right;color:var(--accent)">${item.nomVal!==null?fmt(item.nomVal):'—'}</td>
-          <td class="mono" style="text-align:right;font-weight:700;color:${ic}">${item.desvio!==null?(item.desvio>0?'+':'')+item.desvio.toFixed(1)+'%':'—'}</td>
-          <td class="mono" style="text-align:right;color:${item.ide&&item.ide>1.1?'var(--red)':item.ide&&item.ide>1.05?'var(--yellow)':'var(--green)'}">${item.ide?item.ide.toFixed(3):'—'}</td>
-          <td class="mono" style="text-align:right;color:${item.cv&&item.cv>30?'var(--orange)':'var(--dim)'}">${item.cv?item.cv.toFixed(1):'—'}</td>
-          <td style="text-align:center"><span class="equip-status" style="background:${ic}22;color:${ic};font-size:9px">${sLabel(item.desvio)}</span></td>
-          <td><div class="pareto-mini-bar"><div class="pareto-mini-fill" style="width:${barPct}%;background:${ic}"></div></div></td>
-        </tr>`;
-      });
-      html+=`</tbody></table>`;
-      // Insight/recommendation
-      let insight='';
-      if(a.critico>0){
-        insight=`<strong style="color:var(--red)">Ação imediata requerida:</strong> ${a.critico} equipamento${a.critico>1?'s':''} com desvio >15%. `;
-        if(worst) insight+=`Pior: <strong>${worst.id}</strong> (${worst.desvio>0?'+':''}${worst.desvio.toFixed(1)}%). `;
-        insight+=`Desvio médio do grupo: ${avgDesvio.toFixed(1)}%. Verificar: condição mecânica, obstrução, dimensionamento nominal, degradação do acionamento.`;
-      }else if(a.alerta>0){
-        insight=`<strong style="color:var(--orange)">Monitoramento recomendado:</strong> ${a.alerta} equipamento${a.alerta>1?'s':''} com desvio entre 10-15%. `;
-        insight+=`Desvio médio: ${avgDesvio.toFixed(1)}%. Possíveis causas: desgaste progressivo, variação de carga, sujeira acumulada. Tendência de piora pode indicar necessidade de manutenção preventiva.`;
-      }else{
-        insight=`<strong style="color:var(--yellow)">Desvios moderados:</strong> ${a.atencao} equipamento${a.atencao>1?'s':''} com desvio entre 5-10%. Dentro da faixa aceitável, mas recomenda-se acompanhamento para detectar tendências de degradação.`;
-      }
-      html+=`<div class="pareto-insight ${insightClass}">${insight}</div></div>`;
-    });
-    html+=`<div class="pareto-legend">
-      <div class="pareto-legend-item"><div class="pareto-legend-dot" style="background:var(--red)"></div>Crítico (&gt;15%)</div>
-      <div class="pareto-legend-item"><div class="pareto-legend-dot" style="background:var(--orange)"></div>Alerta (&gt;10%)</div>
-      <div class="pareto-legend-item"><div class="pareto-legend-dot" style="background:var(--yellow)"></div>Atenção (&gt;5%)</div>
-      <div class="pareto-legend-item" style="margin-left:auto;font-weight:600;color:var(--muted)">Total: ${totalDesvios} desvios em ${paretoArr.filter(a=>a.desvios>0).length} tipos</div>
-    </div></div></div>`;
-  }
+  // Pareto — Equipamentos Críticos por Tipo (com drill-down por área)
+  html+=`<div class="card"><div class="card-title">Pareto — Equipamentos Críticos por Tipo <span class="sub">filtre por área · clique em um tipo para expandir</span></div>
+    <div id="paretoContainer"></div>
+  </div>`;
 
   // Equipment grid by section
   [{title:'Ventiladores',ids:vents},{title:'Bombas Spray Dryer',ids:bombas},{title:'Temperaturas & Pressões',ids:[...temps,...press]},{title:'Vazão, Controle & Outros',ids:outros}].forEach(sec=>{
@@ -1593,6 +1456,269 @@ function toggleRadarEquip(id){
   renderRadarDrilldown();
 }
 
+// -------------------------------------------------------------------
+// DRILL-DOWN HELPERS — Top 5 / Pareto / Heatmap (Visão Geral + Análise)
+// -------------------------------------------------------------------
+
+const TOP5_STATE={area:'__all__'};
+const PARETO_STATE={area:'__all__',expanded:null};
+const HEATMAP_STATE={area:'__all__',selected:[]};
+
+function getAllAnalysisItems(){
+  return Object.entries(EQUIPMENT).map(([k,e])=>{
+    const a=getEquipAnalysis(k);
+    if(!a||a.desvio===null) return null;
+    return {id:k,...e,...a};
+  }).filter(Boolean);
+}
+
+function buildAreaChipRow(stepLabel,areas,active,setFn){
+  let html=`<div style="margin-bottom:14px">
+    <div style="font-size:10px;font-weight:600;color:var(--muted);letter-spacing:0.8px;margin-bottom:6px">${stepLabel}</div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px">`;
+  html+=`<button class="radar-chip ${active==='__all__'?'active':''}" onclick="${setFn}('__all__')">Todas</button>`;
+  areas.forEach(ar=>{
+    const isActive=ar===active;
+    html+=`<button class="radar-chip ${isActive?'active':''}" onclick="${setFn}('${esc(ar).replace(/'/g,"\\'")}')">${esc(ar)}</button>`;
+  });
+  html+=`</div></div>`;
+  return html;
+}
+
+// --------- TOP 5 drill-down ---------
+function renderTop5Drilldown(){
+  const ct=document.getElementById('top5Container');
+  if(!ct) return;
+  const all=getAllAnalysisItems();
+  const areas=[...new Set(all.map(i=>i.area))].sort();
+  if(TOP5_STATE.area!=='__all__'&&!areas.includes(TOP5_STATE.area)) TOP5_STATE.area='__all__';
+
+  let html=buildAreaChipRow('ETAPA 1 — ÁREA',areas,TOP5_STATE.area,'setTop5Area');
+
+  const filtered=TOP5_STATE.area==='__all__'?all:all.filter(i=>i.area===TOP5_STATE.area);
+  const top5=filtered.slice().sort((a,b)=>Math.abs(b.desvio)-Math.abs(a.desvio)).slice(0,5);
+
+  if(top5.length===0){
+    html+=`<div style="padding:24px;color:var(--dim);text-align:center;font-size:12px">Sem equipamentos com desvio nesta área.</div>`;
+    ct.innerHTML=html;
+    return;
+  }
+
+  const maxDesvio=Math.abs(top5[0].desvio)||1;
+  html+=`<div class="fin-list">`;
+  top5.forEach(p=>{
+    const barPct=(Math.abs(p.desvio)/maxDesvio*100);
+    const col=sColor(p.desvio);
+    const pt=p.primaryTag||{};
+    const unit=pt.unit||'';
+    html+=`<div class="fin-row" onclick="openModal('${p.id}')">
+      <div class="fin-tag mono">${esc(p.id)}</div>
+      <div>
+        <div class="fin-name">${esc(p.name)}</div>
+        <div class="fin-name-sub">${esc(p.area||'')}</div>
+      </div>
+      <div class="fin-bar-wrap">
+        <div class="fin-bar-track"><div class="fin-bar-fill" style="width:${barPct}%"></div></div>
+      </div>
+      <div class="fin-value">
+        <div class="fin-value-main mono" style="color:${col}">${p.desvio>0?'+':''}${p.desvio.toFixed(1)}%</div>
+        <div class="fin-value-sub">nominal ${fmt(p.nomVal)}${unit?' '+unit:''} · atual ${fmt(pt.value)}${unit?' '+unit:''}</div>
+      </div>
+    </div>`;
+  });
+  html+=`</div>`;
+  ct.innerHTML=html;
+}
+
+function setTop5Area(area){
+  TOP5_STATE.area=area;
+  renderTop5Drilldown();
+}
+
+// --------- PARETO drill-down ---------
+function renderParetoDrilldown(){
+  const ct=document.getElementById('paretoContainer');
+  if(!ct) return;
+  const all=getAllAnalysisItems();
+  const areas=[...new Set(all.map(i=>i.area))].sort();
+  if(PARETO_STATE.area!=='__all__'&&!areas.includes(PARETO_STATE.area)) PARETO_STATE.area='__all__';
+
+  let html=buildAreaChipRow('ETAPA 1 — ÁREA',areas,PARETO_STATE.area,'setParetoArea');
+
+  const scoped=PARETO_STATE.area==='__all__'?all:all.filter(i=>i.area===PARETO_STATE.area);
+
+  // Agrupa por tipo (ou área se não tiver tipo)
+  const buckets={};
+  scoped.forEach(x=>{
+    const key=x.type||x.area||'Outros';
+    if(!buckets[key]) buckets[key]={area:key,critico:0,alerta:0,atencao:0,normal:0};
+    const abs=Math.abs(x.desvio);
+    if(abs>15) buckets[key].critico++;
+    else if(abs>10) buckets[key].alerta++;
+    else if(abs>5) buckets[key].atencao++;
+    else buckets[key].normal++;
+  });
+  const arr=Object.values(buckets).map(a=>({...a,desvios:a.critico+a.alerta+a.atencao})).sort((a,b)=>b.desvios-a.desvios||b.critico-a.critico);
+  const maxDesvios=Math.max(...arr.map(a=>a.desvios),1);
+  const totalDesvios=arr.reduce((s,a)=>s+a.desvios,0);
+
+  if(arr.length===0||totalDesvios===0){
+    html+=`<div style="padding:24px;color:var(--dim);text-align:center;font-size:12px">Sem desvios relevantes nesta área.</div>`;
+    ct.innerHTML=html;
+    return;
+  }
+
+  html+=`<div class="pareto-container">`;
+  let cumPct=0;
+  arr.forEach(a=>{
+    if(a.desvios===0) return;
+    const pct=(a.desvios/totalDesvios*100);
+    cumPct+=pct;
+    const barW=(a.desvios/maxDesvios*100);
+    const critW=(a.critico/a.desvios*barW);
+    const alertW=(a.alerta/a.desvios*barW);
+    const atencW=(a.atencao/a.desvios*barW);
+    const safeType=esc(a.area).replace(/[^a-zA-Z0-9]/g,'_');
+    const isExpanded=PARETO_STATE.expanded===a.area;
+    html+=`<div class="pareto-row" onclick="toggleParetoDrilldown('${esc(a.area).replace(/'/g,"\\'")}')">
+      <div class="pareto-label">${esc(a.area)} <span style="font-size:8px;color:var(--accent)">${isExpanded?'▼':'▶'}</span></div>
+      <div class="pareto-bar-wrap">
+        <div class="pareto-bar-track">
+          <div style="display:flex;height:100%">
+            ${a.critico>0?`<div class="pareto-bar-fill" style="width:${critW}%;background:var(--red)"><span class="pareto-bar-count">${a.critico}</span></div>`:''}
+            ${a.alerta>0?`<div class="pareto-bar-fill" style="width:${alertW}%;background:var(--orange)"><span class="pareto-bar-count">${a.alerta}</span></div>`:''}
+            ${a.atencao>0?`<div class="pareto-bar-fill" style="width:${atencW}%;background:var(--yellow)"><span class="pareto-bar-count">${a.atencao}</span></div>`:''}
+          </div>
+        </div>
+        <div class="pareto-pct mono">${fmt(cumPct,0)}%</div>
+      </div>
+    </div>`;
+    if(isExpanded){
+      const typeEquips=scoped.filter(x=>(x.type||x.area)===a.area).sort((x,y)=>Math.abs(y.desvio)-Math.abs(x.desvio));
+      const avgDesvio=typeEquips.length>0?(typeEquips.reduce((s,x)=>s+Math.abs(x.desvio),0)/typeEquips.length):0;
+      const worst=typeEquips[0];
+      const insightClass=a.critico>0?'critical':a.alerta>0?'warning':'ok';
+      html+=`<div class="pareto-detail" style="max-height:none;padding:14px 16px 16px">
+        <div class="pareto-detail-header">
+          <div class="pareto-detail-title">${esc(a.area)} — ${typeEquips.length} equipamento${typeEquips.length>1?'s':''}</div>
+          <div class="pareto-detail-summary">
+            <span style="color:var(--red)">■ ${a.critico} crítico${a.critico!==1?'s':''}</span>
+            <span style="color:var(--orange)">■ ${a.alerta} alerta${a.alerta!==1?'s':''}</span>
+            <span style="color:var(--yellow)">■ ${a.atencao} atenção</span>
+            <span style="color:var(--green)">■ ${a.normal} normal</span>
+          </div>
+        </div>
+        <table class="pareto-equip-table"><thead><tr>
+          <th style="text-align:left">TAG</th><th style="text-align:left">Equipamento</th>
+          <th style="text-align:right">Atual</th><th style="text-align:right">Nominal</th>
+          <th style="text-align:right">Desvio</th><th style="text-align:right">IDE</th>
+          <th style="text-align:right">CV%</th><th style="text-align:center">Status</th><th>Desvio</th>
+        </tr></thead><tbody>`;
+      typeEquips.forEach(item=>{
+        const ic=sColor(item.desvio);
+        const absD=Math.abs(item.desvio);
+        const barPct=Math.min(absD/30*100,100);
+        const pt=item.primaryTag||{};
+        html+=`<tr data-equip="${item.id}" onclick="event.stopPropagation();openModal('${item.id}')" style="cursor:pointer">
+          <td class="mono equip-link">${esc(item.id)}</td>
+          <td style="color:var(--text)">${esc(item.name)}</td>
+          <td class="mono" style="text-align:right;font-weight:700">${fmt(pt.value)}<span style="font-size:9px;color:var(--dim)">${pt.unit||''}</span></td>
+          <td class="mono" style="text-align:right;color:var(--accent)">${fmt(item.nomVal)}</td>
+          <td class="mono" style="text-align:right;font-weight:700;color:${ic}">${item.desvio>0?'+':''}${item.desvio.toFixed(1)}%</td>
+          <td class="mono" style="text-align:right;color:${item.ide>1.1?'var(--red)':item.ide>1.05?'var(--yellow)':'var(--green)'}">${item.ide?item.ide.toFixed(3):'—'}</td>
+          <td class="mono" style="text-align:right;color:${item.cv&&item.cv>30?'var(--orange)':'var(--dim)'}">${item.cv?item.cv.toFixed(1):'—'}</td>
+          <td style="text-align:center"><span class="equip-status" style="background:${ic}22;color:${ic};font-size:9px">${sLabel(item.desvio)}</span></td>
+          <td><div class="pareto-mini-bar"><div class="pareto-mini-fill" style="width:${barPct}%;background:${ic}"></div></div></td>
+        </tr>`;
+      });
+      html+=`</tbody></table>`;
+      let insight='';
+      if(a.critico>0){
+        insight=`<strong style="color:var(--red)">Ação imediata requerida:</strong> ${a.critico} equipamento${a.critico>1?'s':''} com desvio >15%. `;
+        if(worst) insight+=`Pior: <strong>${worst.id}</strong> (${worst.desvio>0?'+':''}${worst.desvio.toFixed(1)}%). `;
+        insight+=`Desvio médio do grupo: ${avgDesvio.toFixed(1)}%. Verificar: condição mecânica, obstrução, dimensionamento nominal.`;
+      }else if(a.alerta>0){
+        insight=`<strong style="color:var(--orange)">Monitoramento recomendado:</strong> ${a.alerta} equipamento${a.alerta>1?'s':''} com desvio entre 10-15%. `;
+        insight+=`Desvio médio: ${avgDesvio.toFixed(1)}%. Possíveis causas: desgaste progressivo, variação de carga, sujeira acumulada.`;
+      }else{
+        insight=`<strong style="color:var(--yellow)">Desvios moderados:</strong> ${a.atencao} equipamento${a.atencao>1?'s':''} com desvio entre 5-10%. Dentro da faixa aceitável.`;
+      }
+      html+=`<div class="pareto-insight ${insightClass}">${insight}</div></div>`;
+    }
+  });
+  html+=`<div class="pareto-legend">
+    <div class="pareto-legend-item"><div class="pareto-legend-dot" style="background:var(--red)"></div>Crítico (&gt;15%)</div>
+    <div class="pareto-legend-item"><div class="pareto-legend-dot" style="background:var(--orange)"></div>Alerta (&gt;10%)</div>
+    <div class="pareto-legend-item"><div class="pareto-legend-dot" style="background:var(--yellow)"></div>Atenção (&gt;5%)</div>
+    <div class="pareto-legend-item" style="margin-left:auto;font-weight:600;color:var(--muted)">Total: ${totalDesvios} desvios em ${arr.filter(a=>a.desvios>0).length} tipos</div>
+  </div></div>`;
+  ct.innerHTML=html;
+}
+
+function setParetoArea(area){
+  PARETO_STATE.area=area;
+  PARETO_STATE.expanded=null;
+  renderParetoDrilldown();
+}
+
+function toggleParetoDrilldown(type){
+  PARETO_STATE.expanded=(PARETO_STATE.expanded===type)?null:type;
+  renderParetoDrilldown();
+}
+
+// --------- HEATMAP drill-down ---------
+function renderHeatmapDrilldown(){
+  const ct=document.getElementById('heatmapContainer');
+  if(!ct) return;
+  const all=getAllAnalysisItems().sort((a,b)=>Math.abs(b.desvio)-Math.abs(a.desvio));
+  const areas=[...new Set(all.map(i=>i.area))].sort();
+  if(HEATMAP_STATE.area!=='__all__'&&!areas.includes(HEATMAP_STATE.area)) HEATMAP_STATE.area='__all__';
+
+  const scoped=HEATMAP_STATE.area==='__all__'?all:all.filter(i=>i.area===HEATMAP_STATE.area);
+
+  // valida seleção: remove ids fora do escopo
+  HEATMAP_STATE.selected=HEATMAP_STATE.selected.filter(id=>scoped.some(i=>i.id===id));
+  // inicializa com top 10 se vazio
+  if(HEATMAP_STATE.selected.length===0){
+    HEATMAP_STATE.selected=scoped.slice(0,Math.min(10,scoped.length)).map(i=>i.id);
+  }
+
+  let html=buildAreaChipRow('ETAPA 1 — ÁREA',areas,HEATMAP_STATE.area,'setHeatmapArea');
+
+  html+=`<div style="margin-bottom:14px">
+    <div style="font-size:10px;font-weight:600;color:var(--muted);letter-spacing:0.8px;margin-bottom:6px">ETAPA 2 — ATIVOS (clique para incluir/remover)</div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px">`;
+  scoped.forEach(it=>{
+    const active=HEATMAP_STATE.selected.indexOf(it.id)>=0;
+    html+=`<button class="radar-chip equip ${active?'active':''}" onclick="toggleHeatmapEquip('${it.id}')" title="${esc(it.name)}">
+      <span class="mono">${esc(it.id)}</span>
+      <span style="color:${active?'rgba(255,255,255,0.75)':'var(--dim)'};font-weight:400">· ${esc(it.type||it.area||'')}</span>
+    </button>`;
+  });
+  html+=`</div></div>`;
+
+  const selectedItems=scoped.filter(i=>HEATMAP_STATE.selected.indexOf(i.id)>=0);
+  if(selectedItems.length===0){
+    html+=`<div style="padding:24px;color:var(--dim);text-align:center;font-size:12px">Selecione ao menos um ativo para visualizar o heatmap.</div>`;
+  }else{
+    html+=buildDeviationHeatmap(selectedItems,30);
+  }
+  ct.innerHTML=html;
+}
+
+function setHeatmapArea(area){
+  HEATMAP_STATE.area=area;
+  HEATMAP_STATE.selected=[];
+  renderHeatmapDrilldown();
+}
+
+function toggleHeatmapEquip(id){
+  const idx=HEATMAP_STATE.selected.indexOf(id);
+  if(idx>=0) HEATMAP_STATE.selected.splice(idx,1);
+  else HEATMAP_STATE.selected.push(id);
+  renderHeatmapDrilldown();
+}
+
 function buildRadarChart(items){
   if(!items||items.length<2) return '<div style="padding:30px;color:var(--dim);text-align:center;font-size:13px">Selecione ao menos 2 equipamentos para comparar</div>';
 
@@ -1786,10 +1912,10 @@ function renderAnalysis(){
     <div id="radarContainer"></div>
   </div>`;
 
-  // Heatmap
-  html+=`<div class="card"><div class="card-title">Heatmap de Desvio — Últimos 30 dias <span class="sub">evolução diária por ativo · dados sintéticos p/ visualização</span></div>`;
-  html+=buildDeviationHeatmap(items.slice(0,10),30);
-  html+=`</div>`;
+  // Heatmap (com drill-down por área + seleção de ativos)
+  html+=`<div class="card"><div class="card-title">Heatmap de Desvio — Últimos 30 dias <span class="sub">filtre por área e selecione os ativos para visualizar</span></div>
+    <div id="heatmapContainer"></div>
+  </div>`;
 
   html+=`<div class="card"><div class="card-title">Ranking — Nominal vs Atual (todos equipamentos)</div>
   <table><thead><tr>
