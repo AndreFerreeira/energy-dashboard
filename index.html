@@ -253,6 +253,64 @@ tr.clickable { cursor:pointer; }
 .heatmap-legend { display:flex; align-items:center; gap:10px; margin-top:14px; padding-top:12px; border-top:1px solid var(--border); font-size:11px; color:var(--muted); }
 .heatmap-legend-gradient { width:220px; height:12px; border-radius:6px; background:linear-gradient(90deg,#10b981 0%,#e5e7eb 45%,#e5e7eb 55%,#f59e0b 75%,#ef4444 100%); border:1px solid var(--border); }
 
+/* SIMULATOR */
+.sim-inputs { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:18px; padding:16px; background:var(--card2); border-radius:14px; border:1px solid var(--border); }
+.sim-input-group label { display:block; font-size:10px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px; }
+.sim-input-row { display:flex; align-items:center; gap:8px; }
+.sim-input-row input[type="range"] { flex:1; min-width:0; accent-color:var(--accent); }
+.sim-input-row .sim-num { width:52px; padding:5px 6px; font-family:'SF Mono',monospace; font-size:12px; font-weight:600; background:var(--card); border:1px solid var(--border); border-radius:6px; color:var(--text); text-align:center; }
+.sim-input-row .sim-num:focus { outline:none; border-color:var(--accent); }
+.sim-input-row .sim-unit { font-size:10px; color:var(--dim); font-weight:500; min-width:32px; }
+.sim-derived { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-bottom:18px; }
+.sim-derived > div { display:flex; flex-direction:column; padding:12px 16px; background:var(--card); border:1px solid var(--border); border-radius:12px; }
+.sim-derived-label { font-size:10px; color:var(--dim); text-transform:uppercase; letter-spacing:0.5px; font-weight:600; margin-bottom:6px; }
+.sim-derived-val { font-size:22px; font-weight:700; color:var(--text); }
+.sim-cards { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:18px; }
+.sim-tower-card { padding:18px 20px; background:var(--card); border:1px solid var(--border); border-radius:14px; position:relative; transition:all .2s; }
+.sim-tower-card.recommended { border:2px solid var(--green); box-shadow:0 0 0 4px rgba(16,185,129,0.08); }
+.sim-tower-card.ok { border-color:var(--border); }
+.sim-tower-card.infeasible { background:rgba(239,68,68,0.03); border-color:rgba(239,68,68,0.2); }
+.sim-tower-header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:14px; padding-bottom:12px; border-bottom:1px solid var(--border); }
+.sim-tower-name { font-size:15px; font-weight:700; color:var(--text); }
+.sim-tower-range { font-size:10px; color:var(--dim); margin-top:3px; font-weight:500; }
+.sim-badge-rec { background:var(--green); color:#fff; font-size:9px; font-weight:700; padding:4px 9px; border-radius:6px; letter-spacing:0.8px; }
+.sim-metrics { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.sim-metric { padding:10px 12px; background:var(--card2); border-radius:9px; border:1px solid var(--border); }
+.sim-metric-cost { grid-column:1/-1; background:var(--accent-light); border-color:rgba(59,130,246,0.2); }
+.sim-metric-label { font-size:9px; color:var(--dim); text-transform:uppercase; letter-spacing:0.5px; font-weight:600; }
+.sim-metric-val { font-size:16px; font-weight:700; color:var(--text); margin-top:3px; }
+.sim-metric-unit { font-size:10px; color:var(--dim); font-weight:500; margin-left:3px; }
+.sim-penalty-bar { margin-top:12px; padding:8px 12px; background:var(--card2); border-radius:8px; font-size:10px; color:var(--muted); }
+.sim-penalty-label strong { font-family:'SF Mono',monospace; }
+.sim-infeasible-box { text-align:center; padding:24px 14px; color:var(--red); }
+.sim-infeasible-box svg { stroke:var(--red); margin:0 auto 10px; display:block; }
+.sim-infeasible-title { font-size:13px; font-weight:700; margin-bottom:4px; }
+.sim-infeasible-msg { font-size:11px; color:var(--muted); margin-bottom:8px; }
+.sim-infeasible-hint { font-size:10px; color:var(--dim); }
+.sim-banner { display:flex; align-items:center; gap:14px; padding:14px 18px; border-radius:12px; margin-bottom:18px; border:1px solid transparent; }
+.sim-banner-ok { background:rgba(16,185,129,0.08); border-color:rgba(16,185,129,0.25); }
+.sim-banner-warn { background:rgba(249,115,22,0.08); border-color:rgba(249,115,22,0.25); }
+.sim-banner-err { background:rgba(239,68,68,0.08); border-color:rgba(239,68,68,0.25); }
+.sim-banner-icon { width:36px; height:36px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:18px; font-weight:700; flex-shrink:0; }
+.sim-banner-ok .sim-banner-icon { background:var(--green); color:#fff; }
+.sim-banner-warn .sim-banner-icon { background:var(--orange); color:#fff; }
+.sim-banner-err .sim-banner-icon { background:var(--red); color:#fff; }
+.sim-banner-title { font-size:13px; font-weight:700; color:var(--text); }
+.sim-banner-sub { font-size:11px; color:var(--muted); margin-top:3px; }
+.sim-chart-section { padding:16px 0; margin-bottom:14px; }
+.sim-chart-title { font-size:11px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.8px; margin-bottom:12px; }
+.sim-params { border-top:1px solid var(--border); padding-top:14px; }
+.sim-params-header { display:flex; justify-content:space-between; align-items:center; cursor:pointer; padding:10px 14px; background:var(--card2); border-radius:10px; font-size:11px; font-weight:700; color:var(--muted); letter-spacing:0.5px; text-transform:uppercase; }
+.sim-params-header:hover { background:var(--accent-light); color:var(--accent); }
+.sim-params-hint { font-size:10px; color:var(--dim); font-weight:400; text-transform:none; letter-spacing:0; }
+.sim-params-body { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:14px; }
+.sim-params-tower { padding:14px; background:var(--card2); border-radius:10px; border:1px solid var(--border); }
+.sim-params-tower-name { font-size:12px; font-weight:700; color:var(--text); margin-bottom:10px; }
+.sim-params-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+.sim-params-grid label { display:flex; flex-direction:column; font-size:9px; color:var(--dim); text-transform:uppercase; letter-spacing:0.3px; font-weight:600; gap:4px; }
+.sim-params-grid input { padding:6px 8px; font-family:'SF Mono',monospace; font-size:11px; font-weight:600; background:var(--card); border:1px solid var(--border); border-radius:6px; color:var(--text); }
+.sim-params-grid input:focus { outline:none; border-color:var(--accent); }
+
 @media (max-width:1100px) {
   .sidebar { width:64px; padding:16px 8px; }
   .sidebar-brand { padding:2px 0 14px; justify-content:center; }
@@ -274,6 +332,10 @@ tr.clickable { cursor:pointer; }
   .grid-3 { grid-template-columns:1fr; }
   .fin-row { grid-template-columns:60px 1fr 100px; }
   .fin-bar-wrap { grid-column:1/-1; }
+  .sim-inputs { grid-template-columns:repeat(2,1fr); }
+  .sim-derived { grid-template-columns:1fr; }
+  .sim-cards { grid-template-columns:1fr; }
+  .sim-params-body { grid-template-columns:1fr; }
 }
 @media (max-width:600px) {
   .kpi-grid { grid-template-columns:1fr; }
@@ -309,6 +371,10 @@ tr.clickable { cursor:pointer; }
   <button class="tab-btn" data-tab="alerts">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
     <span class="tab-btn-label">Alertas</span>
+  </button>
+  <button class="tab-btn" data-tab="simulator">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+    <span class="tab-btn-label">Simulador T1/T2</span>
   </button>
 
   <div class="sidebar-section">Ativos</div>
@@ -892,6 +958,7 @@ function render(){
     case 'bombas': el.innerHTML=renderBombas(); break;
     case 'analysis': el.innerHTML=renderAnalysis(); renderRadarDrilldown(); renderHeatmapDrilldown(); break;
     case 'alerts': el.innerHTML=renderAlerts(); break;
+    case 'simulator': el.innerHTML=renderSimulator(); renderSimulatorView(); break;
     case 'import': el.innerHTML=renderImport(); break;
   }
   attachHandlers();
@@ -1598,7 +1665,7 @@ function renderParetoDrilldown(){
       const avgDesvio=typeEquips.length>0?(typeEquips.reduce((s,x)=>s+Math.abs(x.desvio),0)/typeEquips.length):0;
       const worst=typeEquips[0];
       const insightClass=a.critico>0?'critical':a.alerta>0?'warning':'ok';
-      html+=`<div class="pareto-detail" style="max-height:none;padding:14px 16px 16px">
+      html+=`<div class="pareto-detail open" style="max-height:none;padding:14px 16px 16px">
         <div class="pareto-detail-header">
           <div class="pareto-detail-title">${esc(a.area)} — ${typeEquips.length} equipamento${typeEquips.length>1?'s':''}</div>
           <div class="pareto-detail-summary">
@@ -1717,6 +1784,342 @@ function toggleHeatmapEquip(id){
   if(idx>=0) HEATMAP_STATE.selected.splice(idx,1);
   else HEATMAP_STATE.selected.push(id);
   renderHeatmapDrilldown();
+}
+
+// -------------------------------------------------------------------
+// SIMULADOR T1/T2 — viabilidade e comparação de consumo
+// -------------------------------------------------------------------
+
+const SIMULATOR_STATE={
+  tonsPerDay:120,
+  hoursPerDay:20,
+  humidity:35,     // % umidade do alimentado (baseline 35%)
+  ambientTemp:25,  // °C (baseline 25°C)
+  showParams:false,
+  t1:{
+    name:'Torre 1',
+    min:4,    // ton/h mínimo operacional
+    opt:6.5,  // ton/h ponto ótimo
+    max:8,    // ton/h capacidade máxima
+    kwhAtOpt:215,   // kWh por ton produzida no ponto ótimo
+    vaporAtOpt:1.85 // ton de vapor por ton produto
+  },
+  t2:{
+    name:'Torre 2',
+    min:5,
+    opt:8,
+    max:10,
+    kwhAtOpt:198,
+    vaporAtOpt:1.78
+  }
+};
+
+// modelo de consumo — curva quadrática em torno do ponto ótimo
+function simulateTower(tower,tonPerHour,humidity,ambientTemp){
+  if(tonPerHour<tower.min) return {viavel:false,motivo:`Abaixo do mínimo (${tower.min} t/h)`,tonPerHour};
+  if(tonPerHour>tower.max) return {viavel:false,motivo:`Acima da capacidade (${tower.max} t/h)`,tonPerHour};
+  // penalidade quadrática: 0 no ponto ótimo, +18% nos extremos
+  const range=tonPerHour<tower.opt?(tower.opt-tower.min):(tower.max-tower.opt);
+  const dev=(tonPerHour-tower.opt)/range;
+  const penalty=0.18*dev*dev;
+  // correções de umidade e temperatura (linear)
+  const humCorr=1+(humidity-35)/100*1.5;      // +1.5% por ponto acima de 35%
+  const tempCorr=1-(ambientTemp-25)*0.003;    // -0.3% kWh por °C acima de 25
+  const kwhPerTon=tower.kwhAtOpt*(1+penalty)*tempCorr;
+  const vaporPerTon=tower.vaporAtOpt*(1+penalty*0.7)*humCorr;
+  return {
+    viavel:true,
+    tonPerHour,
+    kwhPerTon,
+    vaporPerTon,
+    penaltyPct:penalty*100,
+    humCorrPct:(humCorr-1)*100,
+    tempCorrPct:(tempCorr-1)*100
+  };
+}
+
+function computeSimulation(){
+  const s=SIMULATOR_STATE;
+  const tph=s.tonsPerDay/Math.max(s.hoursPerDay,1);
+  const t1=simulateTower(s.t1,tph,s.humidity,s.ambientTemp);
+  const t2=simulateTower(s.t2,tph,s.humidity,s.ambientTemp);
+  // totais
+  [t1,t2].forEach(r=>{
+    if(r.viavel){
+      r.kwhDay=r.kwhPerTon*s.tonsPerDay;
+      r.vaporDay=r.vaporPerTon*s.tonsPerDay;
+      r.custoDia=r.kwhDay*0.55+r.vaporDay*85; // R$0,55/kWh + R$85/ton vapor (editável no futuro)
+    }
+  });
+  // recomendação
+  let recomendacao=null;
+  if(t1.viavel&&t2.viavel){
+    recomendacao=t1.custoDia<t2.custoDia?'t1':'t2';
+  } else if(t1.viavel){
+    recomendacao='t1';
+  } else if(t2.viavel){
+    recomendacao='t2';
+  }
+  return {tph,t1,t2,recomendacao};
+}
+
+function renderSimulator(){
+  let html=`<div class="card"><div class="card-title">Simulador T1 / T2 <span class="sub">qual torre rodar para a produção alvo</span></div>
+    <div id="simulatorView"></div>
+  </div>`;
+  return html;
+}
+
+function renderSimulatorView(){
+  const ct=document.getElementById('simulatorView');
+  if(!ct) return;
+  const s=SIMULATOR_STATE;
+  const res=computeSimulation();
+
+  // ---- INPUTS ----
+  let html=`<div class="sim-inputs">
+    <div class="sim-input-group">
+      <label>Tonelagem por dia</label>
+      <div class="sim-input-row">
+        <input type="range" min="20" max="240" step="5" value="${s.tonsPerDay}" oninput="updateSimInput('tonsPerDay',this.value)">
+        <input type="number" min="0" step="1" value="${s.tonsPerDay}" oninput="updateSimInput('tonsPerDay',this.value)" class="sim-num">
+        <span class="sim-unit">ton/dia</span>
+      </div>
+    </div>
+    <div class="sim-input-group">
+      <label>Horas operacionais</label>
+      <div class="sim-input-row">
+        <input type="range" min="8" max="24" step="1" value="${s.hoursPerDay}" oninput="updateSimInput('hoursPerDay',this.value)">
+        <input type="number" min="1" max="24" value="${s.hoursPerDay}" oninput="updateSimInput('hoursPerDay',this.value)" class="sim-num">
+        <span class="sim-unit">h/dia</span>
+      </div>
+    </div>
+    <div class="sim-input-group">
+      <label>Umidade alimento</label>
+      <div class="sim-input-row">
+        <input type="range" min="20" max="55" step="1" value="${s.humidity}" oninput="updateSimInput('humidity',this.value)">
+        <input type="number" min="0" max="100" value="${s.humidity}" oninput="updateSimInput('humidity',this.value)" class="sim-num">
+        <span class="sim-unit">%</span>
+      </div>
+    </div>
+    <div class="sim-input-group">
+      <label>Temperatura ambiente</label>
+      <div class="sim-input-row">
+        <input type="range" min="10" max="40" step="1" value="${s.ambientTemp}" oninput="updateSimInput('ambientTemp',this.value)">
+        <input type="number" min="-10" max="50" value="${s.ambientTemp}" oninput="updateSimInput('ambientTemp',this.value)" class="sim-num">
+        <span class="sim-unit">°C</span>
+      </div>
+    </div>
+  </div>`;
+
+  // ---- DERIVED METRICS BAR ----
+  html+=`<div class="sim-derived">
+    <div><span class="sim-derived-label">Tonelagem requerida</span><span class="sim-derived-val mono">${res.tph.toFixed(2)} <span style="font-size:10px;color:var(--dim)">ton/h</span></span></div>
+    <div><span class="sim-derived-label">Produção alvo</span><span class="sim-derived-val mono">${s.tonsPerDay} <span style="font-size:10px;color:var(--dim)">ton/dia</span></span></div>
+    <div><span class="sim-derived-label">Janela operacional</span><span class="sim-derived-val mono">${s.hoursPerDay}h <span style="font-size:10px;color:var(--dim)">de ${24}</span></span></div>
+  </div>`;
+
+  // ---- TOWER CARDS ----
+  html+=`<div class="sim-cards">`;
+  ['t1','t2'].forEach(key=>{
+    const r=res[key];
+    const t=s[key];
+    const isRec=res.recomendacao===key;
+    const viavelClass=r.viavel?(isRec?'recommended':'ok'):'infeasible';
+    html+=`<div class="sim-tower-card ${viavelClass}">
+      <div class="sim-tower-header">
+        <div>
+          <div class="sim-tower-name">${t.name}</div>
+          <div class="sim-tower-range">${t.min}–${t.max} t/h · ótimo ${t.opt} t/h</div>
+        </div>
+        ${isRec?`<span class="sim-badge-rec">RECOMENDADO</span>`:''}
+      </div>`;
+    if(!r.viavel){
+      html+=`<div class="sim-infeasible-box">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:24px;height:24px"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+        <div class="sim-infeasible-title">Inviável</div>
+        <div class="sim-infeasible-msg">${r.motivo}</div>
+        <div class="sim-infeasible-hint">Tonelagem requerida: <strong>${res.tph.toFixed(2)} t/h</strong></div>
+      </div>`;
+    } else {
+      html+=`<div class="sim-metrics">
+        <div class="sim-metric"><div class="sim-metric-label">Consumo específico</div><div class="sim-metric-val mono">${r.kwhPerTon.toFixed(0)} <span class="sim-metric-unit">kWh/ton</span></div></div>
+        <div class="sim-metric"><div class="sim-metric-label">Vapor específico</div><div class="sim-metric-val mono">${r.vaporPerTon.toFixed(2)} <span class="sim-metric-unit">t/ton</span></div></div>
+        <div class="sim-metric"><div class="sim-metric-label">Total kWh/dia</div><div class="sim-metric-val mono">${(r.kwhDay/1000).toFixed(1)} <span class="sim-metric-unit">MWh</span></div></div>
+        <div class="sim-metric"><div class="sim-metric-label">Total vapor/dia</div><div class="sim-metric-val mono">${r.vaporDay.toFixed(1)} <span class="sim-metric-unit">ton</span></div></div>
+        <div class="sim-metric sim-metric-cost"><div class="sim-metric-label">Custo estimado</div><div class="sim-metric-val mono">R$ ${(r.custoDia/1000).toFixed(1)}k <span class="sim-metric-unit">/dia</span></div></div>
+      </div>
+      <div class="sim-penalty-bar">
+        <div class="sim-penalty-label">Penalidade fora do ótimo: <strong style="color:${r.penaltyPct>10?'var(--red)':r.penaltyPct>5?'var(--orange)':'var(--green)'}">+${r.penaltyPct.toFixed(1)}%</strong></div>
+      </div>`;
+    }
+    html+=`</div>`;
+  });
+  html+=`</div>`;
+
+  // ---- RECOMMENDATION BANNER ----
+  if(res.recomendacao&&res.t1.viavel&&res.t2.viavel){
+    const rec=res[res.recomendacao];
+    const other=res[res.recomendacao==='t1'?'t2':'t1'];
+    const savings=other.custoDia-rec.custoDia;
+    const savingsPct=(savings/other.custoDia*100);
+    const kwhSaved=other.kwhDay-rec.kwhDay;
+    html+=`<div class="sim-banner sim-banner-ok">
+      <div class="sim-banner-icon">✓</div>
+      <div class="sim-banner-content">
+        <div class="sim-banner-title">Rodar <strong>${s[res.recomendacao].name}</strong> é a escolha mais eficiente</div>
+        <div class="sim-banner-sub">Economia estimada de <strong class="mono">R$ ${savings.toFixed(0)}/dia</strong> (${savingsPct.toFixed(1)}%) · <strong class="mono">${(kwhSaved/1000).toFixed(1)} MWh/dia</strong> a menos vs. ${s[res.recomendacao==='t1'?'t2':'t1'].name}</div>
+      </div>
+    </div>`;
+  } else if(res.recomendacao){
+    const rec=res[res.recomendacao];
+    const other=res[res.recomendacao==='t1'?'t2':'t1'];
+    html+=`<div class="sim-banner sim-banner-warn">
+      <div class="sim-banner-icon">⚠</div>
+      <div class="sim-banner-content">
+        <div class="sim-banner-title">Apenas <strong>${s[res.recomendacao].name}</strong> é viável nesta condição</div>
+        <div class="sim-banner-sub">${s[res.recomendacao==='t1'?'t2':'t1'].name} está inviável: ${other.motivo}</div>
+      </div>
+    </div>`;
+  } else {
+    html+=`<div class="sim-banner sim-banner-err">
+      <div class="sim-banner-icon">✕</div>
+      <div class="sim-banner-content">
+        <div class="sim-banner-title">Nenhuma torre suporta esta produção</div>
+        <div class="sim-banner-sub">Ajuste a tonelagem ou aumente as horas operacionais. Requisito atual: ${res.tph.toFixed(2)} t/h.</div>
+      </div>
+    </div>`;
+  }
+
+  // ---- CURVE CHART ----
+  html+=`<div class="sim-chart-section">
+    <div class="sim-chart-title">Curva de consumo específico por torre</div>
+    ${buildSimulatorChart(res)}
+  </div>`;
+
+  // ---- TOWER PARAMETERS (collapsible) ----
+  html+=`<div class="sim-params">
+    <div class="sim-params-header" onclick="toggleSimParams()">
+      <span>Parâmetros das torres ${s.showParams?'▼':'▶'}</span>
+      <span class="sim-params-hint">ajuste as curvas de cada torre conforme dados reais</span>
+    </div>
+    ${s.showParams?buildSimParamsPanel():''}
+  </div>`;
+
+  ct.innerHTML=html;
+}
+
+function buildSimParamsPanel(){
+  const s=SIMULATOR_STATE;
+  let html=`<div class="sim-params-body">`;
+  ['t1','t2'].forEach(key=>{
+    const t=s[key];
+    html+=`<div class="sim-params-tower">
+      <div class="sim-params-tower-name">${t.name}</div>
+      <div class="sim-params-grid">
+        <label>Mín t/h<input type="number" step="0.1" value="${t.min}" oninput="updateTowerParam('${key}','min',this.value)"></label>
+        <label>Ótimo t/h<input type="number" step="0.1" value="${t.opt}" oninput="updateTowerParam('${key}','opt',this.value)"></label>
+        <label>Máx t/h<input type="number" step="0.1" value="${t.max}" oninput="updateTowerParam('${key}','max',this.value)"></label>
+        <label>kWh/ton ótimo<input type="number" step="1" value="${t.kwhAtOpt}" oninput="updateTowerParam('${key}','kwhAtOpt',this.value)"></label>
+        <label>Vapor/ton ótimo<input type="number" step="0.05" value="${t.vaporAtOpt}" oninput="updateTowerParam('${key}','vaporAtOpt',this.value)"></label>
+      </div>
+    </div>`;
+  });
+  html+=`</div>`;
+  return html;
+}
+
+function buildSimulatorChart(res){
+  const s=SIMULATOR_STATE;
+  const w=860,h=300,padL=60,padR=20,padT=20,padB=40;
+  const cw=w-padL-padR,ch=h-padT-padB;
+  // eixo X: abrange união das faixas das torres
+  const xMin=Math.min(s.t1.min,s.t2.min)*0.9;
+  const xMax=Math.max(s.t1.max,s.t2.max)*1.05;
+  // coleta pontos para calcular yMax
+  const samples=80;
+  const colors={t1:'#3b82f6',t2:'#f97316'};
+  const pointsByTower={};
+  ['t1','t2'].forEach(key=>{
+    const t=s[key];
+    const pts=[];
+    for(let i=0;i<=samples;i++){
+      const x=xMin+(xMax-xMin)*i/samples;
+      if(x<t.min||x>t.max) continue;
+      const r=simulateTower(t,x,s.humidity,s.ambientTemp);
+      if(r.viavel) pts.push({x,y:r.kwhPerTon});
+    }
+    pointsByTower[key]=pts;
+  });
+  const allY=[...pointsByTower.t1.map(p=>p.y),...pointsByTower.t2.map(p=>p.y)];
+  const yMin=Math.min(...allY)*0.96;
+  const yMax=Math.max(...allY)*1.04;
+  const sx=x=>padL+(x-xMin)/(xMax-xMin)*cw;
+  const sy=y=>padT+ch-(y-yMin)/(yMax-yMin)*ch;
+
+  let svg=`<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="xMidYMid meet" style="width:100%;height:auto;max-width:100%">`;
+  // grid
+  for(let g=0;g<=4;g++){
+    const y=padT+ch*g/4;
+    const val=yMax-(yMax-yMin)*g/4;
+    svg+=`<line x1="${padL}" y1="${y}" x2="${w-padR}" y2="${y}" stroke="#e5e7eb" stroke-width="1"/>`;
+    svg+=`<text x="${padL-8}" y="${y+4}" fill="#94a3b8" font-size="10" text-anchor="end" font-family="monospace">${val.toFixed(0)}</text>`;
+  }
+  // x-axis ticks
+  const xTicks=6;
+  for(let i=0;i<=xTicks;i++){
+    const x=xMin+(xMax-xMin)*i/xTicks;
+    const xp=sx(x);
+    svg+=`<line x1="${xp}" y1="${padT+ch}" x2="${xp}" y2="${padT+ch+4}" stroke="#94a3b8" stroke-width="1"/>`;
+    svg+=`<text x="${xp}" y="${padT+ch+16}" fill="#94a3b8" font-size="10" text-anchor="middle" font-family="monospace">${x.toFixed(1)}</text>`;
+  }
+  svg+=`<text x="${padL+cw/2}" y="${h-6}" fill="#64748b" font-size="10" text-anchor="middle" font-weight="600">Tonelagem (t/h)</text>`;
+  svg+=`<text x="14" y="${padT+ch/2}" fill="#64748b" font-size="10" text-anchor="middle" font-weight="600" transform="rotate(-90 14 ${padT+ch/2})">Consumo (kWh/ton)</text>`;
+
+  // curves
+  ['t1','t2'].forEach(key=>{
+    const pts=pointsByTower[key];
+    if(pts.length<2) return;
+    const col=colors[key];
+    const t=s[key];
+    let pathD='';
+    pts.forEach((p,i)=>{
+      pathD+=(i===0?'M':'L')+sx(p.x).toFixed(1)+','+sy(p.y).toFixed(1)+' ';
+    });
+    svg+=`<path d="${pathD}" fill="none" stroke="${col}" stroke-width="2.5" stroke-linecap="round"/>`;
+    // marker optimum
+    const rOpt=simulateTower(t,t.opt,s.humidity,s.ambientTemp);
+    if(rOpt.viavel){
+      svg+=`<circle cx="${sx(t.opt)}" cy="${sy(rOpt.kwhPerTon)}" r="5" fill="${col}" stroke="#fff" stroke-width="2"/>`;
+    }
+    // label at right end
+    const last=pts[pts.length-1];
+    svg+=`<text x="${sx(last.x)+8}" y="${sy(last.y)+3}" fill="${col}" font-size="11" font-weight="700">${t.name}</text>`;
+  });
+
+  // vertical line at current tph
+  const curX=res.tph;
+  if(curX>=xMin&&curX<=xMax){
+    svg+=`<line x1="${sx(curX)}" y1="${padT}" x2="${sx(curX)}" y2="${padT+ch}" stroke="#1e293b" stroke-width="1.5" stroke-dasharray="5,3"/>`;
+    svg+=`<rect x="${sx(curX)-34}" y="${padT-2}" width="68" height="16" rx="4" fill="#1e293b"/>`;
+    svg+=`<text x="${sx(curX)}" y="${padT+10}" fill="#fff" font-size="10" text-anchor="middle" font-family="monospace" font-weight="600">${curX.toFixed(2)} t/h</text>`;
+  }
+
+  svg+=`</svg>`;
+  return svg;
+}
+
+function updateSimInput(field,value){
+  SIMULATOR_STATE[field]=parseFloat(value)||0;
+  renderSimulatorView();
+}
+function updateTowerParam(tower,field,value){
+  SIMULATOR_STATE[tower][field]=parseFloat(value)||0;
+  renderSimulatorView();
+}
+function toggleSimParams(){
+  SIMULATOR_STATE.showParams=!SIMULATOR_STATE.showParams;
+  renderSimulatorView();
 }
 
 function buildRadarChart(items){
