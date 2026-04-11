@@ -310,6 +310,30 @@ tr.clickable { cursor:pointer; }
 .sim-params-grid label { display:flex; flex-direction:column; font-size:9px; color:var(--dim); text-transform:uppercase; letter-spacing:0.3px; font-weight:600; gap:4px; }
 .sim-params-grid input { padding:6px 8px; font-family:'SF Mono',monospace; font-size:11px; font-weight:600; background:var(--card); border:1px solid var(--border); border-radius:6px; color:var(--text); }
 .sim-params-grid input:focus { outline:none; border-color:var(--accent); }
+.sim-source { display:flex; align-items:center; gap:10px; padding:10px 14px; background:var(--card2); border-radius:10px; margin-bottom:14px; }
+.sim-source-label { font-size:10px; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:0.5px; }
+.sim-source-badge { font-size:11px; font-weight:600; padding:4px 10px; border-radius:6px; }
+.sim-source-default { background:var(--card); color:var(--dim); border:1px dashed var(--border); }
+.sim-source-real { background:rgba(16,185,129,0.1); color:var(--green); border:1px solid var(--green); }
+.sim-import-body { padding:14px; background:var(--card2); border-radius:10px; margin-top:14px; display:flex; flex-direction:column; gap:12px; }
+.sim-import-hint { font-size:11px; color:var(--muted); line-height:1.5; padding:10px 12px; background:var(--accent-light); border-radius:8px; border-left:3px solid var(--accent); }
+.sim-import-hint code { background:rgba(0,0,0,0.06); padding:1px 5px; border-radius:4px; font-family:'SF Mono',monospace; font-size:10px; color:var(--accent); }
+.sim-import-textarea { width:100%; min-height:140px; padding:10px 12px; font-family:'SF Mono',monospace; font-size:11px; background:var(--card); border:1px solid var(--border); border-radius:8px; color:var(--text); resize:vertical; box-sizing:border-box; line-height:1.5; }
+.sim-import-textarea:focus { outline:none; border-color:var(--accent); }
+.sim-import-actions { display:flex; gap:8px; flex-wrap:wrap; }
+.sim-btn { padding:8px 16px; font-size:11px; font-weight:600; border:1px solid var(--border); border-radius:8px; background:var(--card); color:var(--text); cursor:pointer; transition:all 0.15s; font-family:inherit; }
+.sim-btn:hover { background:var(--card2); border-color:var(--accent); }
+.sim-btn-primary { background:var(--accent); color:white; border-color:var(--accent); }
+.sim-btn-primary:hover { background:var(--accent); filter:brightness(1.1); border-color:var(--accent); }
+.sim-import-result { padding:12px 14px; border-radius:8px; font-size:11px; }
+.sim-import-result-ok { background:rgba(16,185,129,0.08); border:1px solid var(--green); color:var(--green); }
+.sim-import-result-err { background:rgba(239,68,68,0.08); border:1px solid var(--red); color:var(--red); }
+.sim-import-result-title { font-weight:700; margin-bottom:8px; font-size:12px; }
+.sim-import-result-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:8px; color:var(--text); }
+.sim-import-fit { padding:10px 12px; background:var(--card); border-radius:6px; border:1px solid var(--border); }
+.sim-import-fit-name { font-size:11px; font-weight:700; color:var(--text); margin-bottom:6px; }
+.sim-import-fit-row { display:flex; justify-content:space-between; align-items:center; font-size:10px; color:var(--muted); padding:2px 0; }
+.sim-import-fit-row b { font-family:'SF Mono',monospace; color:var(--text); font-size:10px; }
 
 @media (max-width:1100px) {
   .sidebar { width:64px; padding:16px 8px; }
@@ -389,6 +413,10 @@ tr.clickable { cursor:pointer; }
   <button class="tab-btn" data-tab="bombas">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3"/><line x1="12" y1="3" x2="12" y2="9"/><line x1="12" y1="15" x2="12" y2="21"/></svg>
     <span class="tab-btn-label">Bombas</span>
+  </button>
+  <button class="tab-btn" data-tab="motores">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v4"/><path d="M12 18v4"/><path d="M4.93 4.93l2.83 2.83"/><path d="M16.24 16.24l2.83 2.83"/><path d="M2 12h4"/><path d="M18 12h4"/><path d="M4.93 19.07l2.83-2.83"/><path d="M16.24 7.76l2.83-2.83"/></svg>
+    <span class="tab-btn-label">Motores</span>
   </button>
 
   <div class="sidebar-section">Sistema</div>
@@ -553,6 +581,52 @@ const EQUIPMENT = {
     {var:"Setpoint Velocidade Motor",value:87.68,min:80,max:96,std:8.03,unit:"%",n:69,type:"analog"},
     {var:"Feedback Velocidade",value:49.57,min:0,max:57.33,std:8.81,unit:"Hz",n:161,type:"analog"},
     {var:"Leitura Corrente Drive (raw)",value:105.66,min:0,max:152,std:17.22,unit:"raw",n:286,type:"raw"},
+  ]},
+  SC1307:{id:"SC1307",name:"Rosca Dosadora Biomassa 01",area:"Caldeira Biomassa",type:"Rosca",plc:"ControlLogixBiomassa",status:"Operando",nominal:{corrente:12,speed:100},tags:[
+    {var:"Corrente Atual Motor",value:9.82,min:0,max:14.1,std:1.72,unit:"A",n:268,type:"analog"},
+    {var:"Setpoint Velocidade Motor",value:82.3,min:70,max:95,std:6.8,unit:"%",n:62,type:"analog"},
+    {var:"Feedback Velocidade",value:47.4,min:0,max:55.1,std:7.9,unit:"Hz",n:158,type:"analog"},
+  ]},
+  SC1308:{id:"SC1308",name:"Rosca Dosadora Biomassa 02",area:"Caldeira Biomassa",type:"Rosca",plc:"ControlLogixBiomassa",status:"Operando",nominal:{corrente:12,speed:100},tags:[
+    {var:"Corrente Atual Motor",value:10.11,min:0,max:14.6,std:1.84,unit:"A",n:271,type:"analog"},
+    {var:"Setpoint Velocidade Motor",value:84.5,min:72,max:96,std:7.1,unit:"%",n:63,type:"analog"},
+    {var:"Feedback Velocidade",value:48.7,min:0,max:56.2,std:8.1,unit:"Hz",n:160,type:"analog"},
+  ]},
+  HC1341:{id:"HC1341",name:"Unidade Hidráulica Grelha 01",area:"Caldeira Biomassa",type:"Hidráulica",plc:"ControlLogixBiomassa",status:"Operando",nominal:{corrente:22,speed:100},tags:[
+    {var:"Corrente Atual Motor",value:18.64,min:0,max:25.2,std:3.45,unit:"A",n:210,type:"analog"},
+    {var:"Setpoint Velocidade Motor",value:75.0,min:60,max:90,std:8.2,unit:"%",n:48,type:"analog"},
+    {var:"Status Motor",value:3,min:0,max:3,std:0.65,unit:"",n:6,type:"status"},
+  ]},
+  HC1342:{id:"HC1342",name:"Unidade Hidráulica Grelha 02",area:"Caldeira Biomassa",type:"Hidráulica",plc:"ControlLogixBiomassa",status:"Operando",nominal:{corrente:22,speed:100},tags:[
+    {var:"Corrente Atual Motor",value:19.12,min:0,max:26.1,std:3.62,unit:"A",n:213,type:"analog"},
+    {var:"Setpoint Velocidade Motor",value:76.5,min:62,max:91,std:8.4,unit:"%",n:49,type:"analog"},
+    {var:"Status Motor",value:3,min:0,max:3,std:0.62,unit:"",n:6,type:"status"},
+  ]},
+  TC1344:{id:"TC1344",name:"Redler Cinzas",area:"Caldeira Biomassa",type:"Redler",plc:"ControlLogixBiomassa",status:"Operando",nominal:{corrente:7,speed:100},tags:[
+    {var:"Corrente Atual Motor",value:5.48,min:0,max:8.2,std:1.18,unit:"A",n:195,type:"analog"},
+    {var:"Setpoint Velocidade Motor",value:68.0,min:55,max:82,std:6.5,unit:"%",n:41,type:"analog"},
+  ]},
+  F1602:{id:"F1602",name:"Ventilador Air Lift (T2)",area:"Spray Dryer T2",type:"AirLift",plc:"ControlLogixT2",status:"Operando",nominal:{corrente:290,speed:100},tags:[
+    {var:"Corrente Atual Motor",value:275.4,min:0,max:310,std:24.6,unit:"A",n:412,type:"analog"},
+    {var:"Setpoint Velocidade Motor",value:92.1,min:75,max:100,std:6.4,unit:"%",n:98,type:"analog"},
+    {var:"Feedback Velocidade",value:55.3,min:0,max:60,std:5.2,unit:"Hz",n:208,type:"analog"},
+    {var:"Status Motor",value:3,min:0,max:3,std:0.45,unit:"",n:6,type:"status"},
+  ]},
+  BC1607:{id:"BC1607",name:"Correia Transportadora T2 01",area:"Spray Dryer T2",type:"Correia",plc:"ControlLogixT2",status:"Operando",nominal:{corrente:9,speed:100},tags:[
+    {var:"Corrente Atual Motor",value:7.18,min:0,max:10.4,std:1.32,unit:"A",n:258,type:"analog"},
+    {var:"Setpoint Velocidade Motor",value:79.5,min:65,max:92,std:7.6,unit:"%",n:61,type:"analog"},
+  ]},
+  BC1610:{id:"BC1610",name:"Correia Transportadora T2 02",area:"Spray Dryer T2",type:"Correia",plc:"ControlLogixT2",status:"Operando",nominal:{corrente:9,speed:100},tags:[
+    {var:"Corrente Atual Motor",value:7.45,min:0,max:10.7,std:1.28,unit:"A",n:260,type:"analog"},
+    {var:"Setpoint Velocidade Motor",value:80.2,min:66,max:93,std:7.7,unit:"%",n:62,type:"analog"},
+  ]},
+  DF1604:{id:"DF1604",name:"Dosador Gravimétrico 01",area:"Spray Dryer T2",type:"Dosador",plc:"ControlLogixT2",status:"Operando",nominal:{corrente:4,speed:100},tags:[
+    {var:"Corrente Atual Motor",value:2.86,min:0,max:4.3,std:0.72,unit:"A",n:180,type:"analog"},
+    {var:"Setpoint Velocidade Motor",value:65.4,min:40,max:85,std:10.2,unit:"%",n:52,type:"analog"},
+  ]},
+  DF1620:{id:"DF1620",name:"Dosador Gravimétrico 02",area:"Spray Dryer T2",type:"Dosador",plc:"ControlLogixT2",status:"Operando",nominal:{corrente:4,speed:100},tags:[
+    {var:"Corrente Atual Motor",value:3.02,min:0,max:4.5,std:0.78,unit:"A",n:184,type:"analog"},
+    {var:"Setpoint Velocidade Motor",value:67.1,min:42,max:87,std:10.5,unit:"%",n:53,type:"analog"},
   ]},
   VP1443:{id:"VP1443",name:"Bomba de Vácuo",area:"Spray Dryer",type:"Bomba",plc:"ControlLogixT1",status:"Operando",nominal:{corrente:18},tags:[
     {var:"Corrente E3 Convertida",value:17.24,min:16.75,max:17.75,std:0.22,unit:"A",n:238,type:"analog"},
@@ -956,6 +1030,7 @@ function render(){
     case 'caldeira': el.innerHTML=renderCaldeira(); break;
     case 'ventiladores': el.innerHTML=renderVentiladores(); break;
     case 'bombas': el.innerHTML=renderBombas(); break;
+    case 'motores': el.innerHTML=renderMotores(); break;
     case 'analysis': el.innerHTML=renderAnalysis(); renderRadarDrilldown(); renderHeatmapDrilldown(); break;
     case 'alerts': el.innerHTML=renderAlerts(); break;
     case 'simulator': el.innerHTML=renderSimulator(); renderSimulatorView(); break;
@@ -1315,6 +1390,95 @@ function renderBombas(){
   // Equipment cards
   html+=`<div class="section-title" style="margin-top:16px">Equipamentos</div><div class="equip-grid">`;
   bombas.concat(['NORDSON']).forEach(id=>{ html+=renderEquipCard(id); });
+  html+=`</div>`;
+
+  return html;
+}
+
+function renderMotores(){
+  // Motores que não são nem Bomba nem Ventilador: correias, roscas, hidráulicas, redlers,
+  // air lift (ventilador massivo tratado como "motor" pesado), dosadores gravimétricos.
+  const motorTypes=['Correia','Rosca','Hidráulica','Redler','AirLift','Dosador'];
+  const ids=Object.keys(EQUIPMENT).filter(k=>motorTypes.includes(EQUIPMENT[k].type));
+  const caldeira=ids.filter(id=>EQUIPMENT[id].area==='Caldeira Biomassa');
+  const t2=ids.filter(id=>EQUIPMENT[id].area==='Spray Dryer T2');
+  const t1=ids.filter(id=>EQUIPMENT[id].area==='Spray Dryer T1'||EQUIPMENT[id].area==='Spray Dryer');
+
+  const getCorr=id=>{const e=EQUIPMENT[id];const t=e.tags.find(t=>t.var.includes('Corrente Atual')||t.var.includes('Corrente E3'));return t?t.value:0;};
+  const getSpeed=id=>{const e=EQUIPMENT[id];const t=e.tags.find(t=>t.var.includes('Setpoint Velocidade')||t.var.includes('Velocidade Motor'));return t?t.value:0;};
+  // Estimativa de kW por motor (trifásico 440V, fp 0.85):  kW = √3 * 440 * I * 0.85 / 1000
+  const kwFromAmp=a=>a*440*1.732*0.85/1000;
+
+  const totalCorr=ids.reduce((a,id)=>a+getCorr(id),0);
+  const totalKw=ids.reduce((a,id)=>a+kwFromAmp(getCorr(id)),0);
+  const operando=ids.filter(id=>EQUIPMENT[id].status==='Operando').length;
+
+  let html=`<div class="kpi-grid" style="grid-template-columns:repeat(4,1fr)">`;
+  [{label:'Total Motores',value:ids.length,color:'var(--accent)'},
+   {label:'Operando',value:operando,color:'var(--green)'},
+   {label:'Corrente Total',value:fmt(totalCorr)+' A',color:'var(--cyan)'},
+   {label:'Carga Estimada',value:fmt(totalKw,0)+' kW',color:'var(--yellow)'},
+  ].forEach(k=>{
+    html+=`<div class="kpi"><div class="kpi-bar" style="background:${k.color}"></div><div class="kpi-label">${k.label}</div><div class="kpi-value mono">${k.value}</div></div>`;
+  });
+  html+=`</div>`;
+
+  html+=`<div class="card" style="margin-top:14px"><div class="card-title">Motores agrupam os acionamentos que não são bombas nem ventiladores</div>
+    <div style="font-size:12px;color:var(--muted);line-height:1.6">Correias transportadoras, roscas dosadoras, unidades hidráulicas das grelhas, redlers de cinza, air lift e dosadores gravimétricos. Cargas elétricas estimadas a partir da corrente medida via fórmula trifásica (√3 · V · I · fp).</div>
+  </div>`;
+
+  const renderGroup=(title,color,groupIds)=>{
+    if(groupIds.length===0) return '';
+    let h=`<div style="font-size:13px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin:16px 0 10px">${title}</div>`;
+    h+=`<div class="card"><div class="bar-chart">`;
+    const maxCorr=Math.max(...groupIds.map(getCorr),1);
+    groupIds.forEach(id=>{
+      const e=EQUIPMENT[id];
+      const corr=getCorr(id);
+      const kw=kwFromAmp(corr);
+      h+=`<div class="bar-row clickable" data-equip="${id}" style="cursor:pointer">
+        <div class="bar-label mono" title="${esc(e.name)}">${esc(id)}</div>
+        <div class="bar-track">
+          <div class="bar-fill" style="width:${(corr/maxCorr*100)}%;background:${color};opacity:0.85;border-radius:4px"></div>
+        </div>
+        <div class="bar-val-label mono">${fmt(corr)} A · ~${fmt(kw,0)} kW</div>
+      </div>`;
+    });
+    h+=`</div></div>`;
+    return h;
+  };
+
+  html+=renderGroup('Caldeira Biomassa','var(--accent)',caldeira);
+  html+=renderGroup('Torre 2 — Spray Dryer','var(--green)',t2);
+  html+=renderGroup('Torre 1 — Spray Dryer','var(--cyan)',t1);
+
+  // Tabela completa
+  html+=`<div class="card" style="margin-top:16px"><div class="card-title">Tabela Completa — Todos Motores</div><table><thead><tr>
+    <th style="text-align:center">TAG</th><th>Nome</th><th>Área</th><th>Tipo</th>
+    <th style="text-align:right">Corrente</th><th style="text-align:right">Velocidade</th><th style="text-align:right">kW est.</th><th style="text-align:center">Status</th>
+  </tr></thead><tbody>`;
+  ids.forEach((id,i)=>{
+    const e=EQUIPMENT[id];
+    const corr=getCorr(id);
+    const sp=getSpeed(id);
+    const kw=kwFromAmp(corr);
+    const statusCol=e.status==='Operando'?'var(--green)':(e.status==='Intermitente'?'var(--yellow)':'var(--dim)');
+    html+=`<tr class="clickable" data-equip="${id}" style="${i%2?'background:rgba(255,255,255,0.015)':''}">
+      <td class="mono" style="text-align:center;color:var(--accent);font-weight:600">${esc(id)}</td>
+      <td>${esc(e.name)}</td>
+      <td style="color:var(--dim);font-size:10px">${esc(e.area)}</td>
+      <td style="color:var(--muted);font-size:11px">${esc(e.type)}</td>
+      <td class="mono" style="text-align:right;font-weight:600">${fmt(corr)} A</td>
+      <td class="mono" style="text-align:right">${sp?fmt(sp)+' %':'—'}</td>
+      <td class="mono" style="text-align:right;color:var(--yellow)">${fmt(kw,0)}</td>
+      <td style="text-align:center"><span class="equip-status" style="background:${statusCol}22;color:${statusCol}">${esc(e.status)}</span></td>
+    </tr>`;
+  });
+  html+=`</tbody></table></div>`;
+
+  // Equipment cards
+  html+=`<div class="section-title" style="margin-top:16px">Equipamentos</div><div class="equip-grid">`;
+  ids.forEach(id=>{ html+=renderEquipCard(id); });
   html+=`</div>`;
 
   return html;
@@ -1796,6 +1960,10 @@ const SIMULATOR_STATE={
   humidity:35,     // % umidade do alimentado (baseline 35%)
   ambientTemp:25,  // °C (baseline 25°C)
   showParams:false,
+  showImport:false,
+  importText:'',
+  importStatus:null,    // {ok:bool, msg:string, rowsT1:n, rowsT2:n, fitted:{t1,t2}}
+  dataSource:'default', // 'default' | 'real'
   t1:{
     name:'Torre 1',
     min:4,    // ton/h mínimo operacional
@@ -1997,11 +2165,26 @@ function renderSimulatorView(){
     ${buildSimulatorChart(res)}
   </div>`;
 
+  // ---- DATA SOURCE BADGE ----
+  html+=`<div class="sim-source">
+    <span class="sim-source-label">Fonte dos parâmetros:</span>
+    <span class="sim-source-badge sim-source-${s.dataSource}">${s.dataSource==='real'?'◉ Dados reais (KQL)':'◯ Valores padrão (estimativa)'}</span>
+  </div>`;
+
+  // ---- IMPORT REAL DATA (collapsible) ----
+  html+=`<div class="sim-params">
+    <div class="sim-params-header" onclick="toggleSimImport()">
+      <span>Importar dados reais do KQL ${s.showImport?'▼':'▶'}</span>
+      <span class="sim-params-hint">cole o resultado da query KQL (CSV) para ajustar as curvas</span>
+    </div>
+    ${s.showImport?buildSimImportPanel():''}
+  </div>`;
+
   // ---- TOWER PARAMETERS (collapsible) ----
   html+=`<div class="sim-params">
     <div class="sim-params-header" onclick="toggleSimParams()">
       <span>Parâmetros das torres ${s.showParams?'▼':'▶'}</span>
-      <span class="sim-params-hint">ajuste as curvas de cada torre conforme dados reais</span>
+      <span class="sim-params-hint">ajuste as curvas de cada torre manualmente</span>
     </div>
     ${s.showParams?buildSimParamsPanel():''}
   </div>`;
@@ -2027,6 +2210,130 @@ function buildSimParamsPanel(){
   });
   html+=`</div>`;
   return html;
+}
+
+function buildSimImportPanel(){
+  const s=SIMULATOR_STATE;
+  const st=s.importStatus;
+  let html=`<div class="sim-import-body">`;
+  html+=`<div class="sim-import-hint">
+    <strong>Formato esperado:</strong> CSV com cabeçalho contendo <code>tower,tph,kwh_per_ton,vapor_per_ton</code> (ordem livre).
+    A coluna <code>tower</code> aceita <code>T1</code>/<code>T2</code> ou <code>1</code>/<code>2</code>.
+    Cada linha é uma hora de operação real da torre.
+  </div>`;
+  html+=`<textarea class="sim-import-textarea" id="simImportText" placeholder="tower,tph,kwh_per_ton,vapor_per_ton\nT1,6.2,218,1.90\nT1,6.5,212,1.85\nT1,7.0,220,1.92\nT2,7.8,202,1.80\n...">${esc(s.importText||'')}</textarea>`;
+  html+=`<div class="sim-import-actions">
+    <button class="sim-btn sim-btn-primary" onclick="loadRealData()">Analisar & aplicar às curvas</button>
+    <button class="sim-btn" onclick="clearRealData()">Limpar / voltar ao padrão</button>
+  </div>`;
+  if(st){
+    const cls=st.ok?'sim-import-result-ok':'sim-import-result-err';
+    html+=`<div class="sim-import-result ${cls}">
+      <div class="sim-import-result-title">${st.ok?'✓ '+st.msg:'✕ '+st.msg}</div>`;
+    if(st.ok && st.fitted){
+      html+=`<div class="sim-import-result-grid">`;
+      ['t1','t2'].forEach(k=>{
+        const f=st.fitted[k];
+        if(!f) return;
+        html+=`<div class="sim-import-fit">
+          <div class="sim-import-fit-name">${s[k].name} · ${f.n} amostras</div>
+          <div class="sim-import-fit-row"><span>min/opt/máx t/h</span><b>${f.min.toFixed(1)} / ${f.opt.toFixed(1)} / ${f.max.toFixed(1)}</b></div>
+          <div class="sim-import-fit-row"><span>kWh/ton @ ótimo</span><b>${f.kwhAtOpt.toFixed(0)}</b></div>
+          <div class="sim-import-fit-row"><span>vapor/ton @ ótimo</span><b>${f.vaporAtOpt.toFixed(2)}</b></div>
+        </div>`;
+      });
+      html+=`</div>`;
+    }
+    html+=`</div>`;
+  }
+  html+=`</div>`;
+  return html;
+}
+
+// parseia CSV ou TSV livre, encontra colunas por nome
+function parseRealDataCSV(text){
+  const lines=text.split(/\r?\n/).map(l=>l.trim()).filter(l=>l.length>0);
+  if(lines.length<2) return {error:'Cole pelo menos uma linha de cabeçalho + 1 linha de dados'};
+  // detectar delimitador: vírgula, ponto-vírgula ou tab
+  const firstLine=lines[0];
+  let delim=',';
+  if(firstLine.includes('\t')) delim='\t';
+  else if(firstLine.includes(';') && firstLine.split(';').length>firstLine.split(',').length) delim=';';
+  const header=lines[0].split(delim).map(c=>c.trim().toLowerCase().replace(/['"]/g,''));
+  // mapear colunas
+  const find=(names)=>{for(const n of names){const i=header.findIndex(h=>h===n||h.includes(n));if(i>=0) return i;} return -1;};
+  const iTower=find(['tower','torre','tag']);
+  const iTph=find(['tph','ton_per_hour','ton/h','tonperhour','vazao_massica','vazao']);
+  const iKwh=find(['kwh_per_ton','kwh/ton','kwhperton','kwh_ton','consumo_especifico','kwh']);
+  const iVapor=find(['vapor_per_ton','vapor/ton','vapor_ton','vaporperton','steam_per_ton','vapor']);
+  if(iTower<0||iTph<0) return {error:`Colunas obrigatórias não encontradas. Esperado pelo menos "tower" e "tph". Cabeçalho recebido: ${header.join(', ')}`};
+  if(iKwh<0 && iVapor<0) return {error:'Precisa de pelo menos uma coluna kwh_per_ton ou vapor_per_ton'};
+  const rowsT1=[],rowsT2=[];
+  let skipped=0;
+  for(let i=1;i<lines.length;i++){
+    const cols=lines[i].split(delim).map(c=>c.trim().replace(/['"]/g,''));
+    if(cols.length<2) {skipped++;continue;}
+    const tw=(cols[iTower]||'').toUpperCase().replace(/[^12T]/g,'');
+    const tph=parseFloat((cols[iTph]||'').replace(',','.'));
+    const kwh=iKwh>=0?parseFloat((cols[iKwh]||'').replace(',','.')):null;
+    const vap=iVapor>=0?parseFloat((cols[iVapor]||'').replace(',','.')):null;
+    if(!isFinite(tph)||tph<=0){skipped++;continue;}
+    const row={tph,kwhPerTon:isFinite(kwh)?kwh:null,vaporPerTon:isFinite(vap)?vap:null};
+    if(tw.includes('1')||tw==='T1') rowsT1.push(row);
+    else if(tw.includes('2')||tw==='T2') rowsT2.push(row);
+    else skipped++;
+  }
+  return {rowsT1,rowsT2,skipped};
+}
+
+function percentile(sorted,p){
+  if(!sorted.length) return null;
+  const i=(sorted.length-1)*p;
+  const lo=Math.floor(i),hi=Math.ceil(i);
+  if(lo===hi) return sorted[lo];
+  return sorted[lo]+(sorted[hi]-sorted[lo])*(i-lo);
+}
+
+// ajusta parâmetros min/opt/max/kwhAtOpt/vaporAtOpt a partir de amostras reais
+function fitTowerFromSamples(rows){
+  if(rows.length<3) return null;
+  const tphSorted=rows.map(r=>r.tph).sort((a,b)=>a-b);
+  const min=Math.max(percentile(tphSorted,0.05),tphSorted[0]);
+  const max=percentile(tphSorted,0.95);
+  // ótimo = tph com menor kwh/ton (se houver); senão mediana
+  let opt;
+  const withKwh=rows.filter(r=>r.kwhPerTon!==null&&r.kwhPerTon>0);
+  if(withKwh.length>=3){
+    // bin de tph para achar janela com menor kwh/ton médio
+    const nBins=Math.min(10,Math.max(4,Math.floor(withKwh.length/5)));
+    const step=(max-min)/nBins;
+    let bestBin=null;
+    for(let b=0;b<nBins;b++){
+      const lo=min+b*step,hi=lo+step;
+      const inBin=withKwh.filter(r=>r.tph>=lo&&r.tph<hi);
+      if(inBin.length<2) continue;
+      const avg=inBin.reduce((s,r)=>s+r.kwhPerTon,0)/inBin.length;
+      if(bestBin===null||avg<bestBin.avg) bestBin={avg,lo,hi,center:(lo+hi)/2};
+    }
+    opt=bestBin?bestBin.center:percentile(tphSorted,0.5);
+  } else {
+    opt=percentile(tphSorted,0.5);
+  }
+  // kwhAtOpt e vaporAtOpt: média dos pontos perto de opt (±15%)
+  const tolAbs=Math.max((max-min)*0.15,0.3);
+  const near=rows.filter(r=>Math.abs(r.tph-opt)<=tolAbs);
+  const kwhSamples=(near.length?near:rows).filter(r=>r.kwhPerTon!==null&&r.kwhPerTon>0);
+  const vapSamples=(near.length?near:rows).filter(r=>r.vaporPerTon!==null&&r.vaporPerTon>0);
+  const kwhAtOpt=kwhSamples.length?kwhSamples.reduce((s,r)=>s+r.kwhPerTon,0)/kwhSamples.length:null;
+  const vaporAtOpt=vapSamples.length?vapSamples.reduce((s,r)=>s+r.vaporPerTon,0)/vapSamples.length:null;
+  return {
+    n:rows.length,
+    min:Math.round(min*10)/10,
+    opt:Math.round(opt*10)/10,
+    max:Math.round(max*10)/10,
+    kwhAtOpt:kwhAtOpt?Math.round(kwhAtOpt):null,
+    vaporAtOpt:vaporAtOpt?Math.round(vaporAtOpt*100)/100:null
+  };
 }
 
 function buildSimulatorChart(res){
@@ -2115,10 +2422,69 @@ function updateSimInput(field,value){
 }
 function updateTowerParam(tower,field,value){
   SIMULATOR_STATE[tower][field]=parseFloat(value)||0;
+  SIMULATOR_STATE.dataSource='real'; // edição manual conta como "ajustado"
   renderSimulatorView();
 }
 function toggleSimParams(){
   SIMULATOR_STATE.showParams=!SIMULATOR_STATE.showParams;
+  renderSimulatorView();
+}
+function toggleSimImport(){
+  SIMULATOR_STATE.showImport=!SIMULATOR_STATE.showImport;
+  renderSimulatorView();
+}
+function loadRealData(){
+  const ta=document.getElementById('simImportText');
+  const text=ta?ta.value:'';
+  SIMULATOR_STATE.importText=text;
+  if(!text.trim()){
+    SIMULATOR_STATE.importStatus={ok:false,msg:'Cole o CSV primeiro'};
+    renderSimulatorView();
+    return;
+  }
+  const parsed=parseRealDataCSV(text);
+  if(parsed.error){
+    SIMULATOR_STATE.importStatus={ok:false,msg:parsed.error};
+    renderSimulatorView();
+    return;
+  }
+  const fitT1=fitTowerFromSamples(parsed.rowsT1);
+  const fitT2=fitTowerFromSamples(parsed.rowsT2);
+  if(!fitT1&&!fitT2){
+    SIMULATOR_STATE.importStatus={ok:false,msg:'Dados insuficientes — precisa ao menos 3 linhas por torre'};
+    renderSimulatorView();
+    return;
+  }
+  // aplicar aos parâmetros existentes (preserva o que faltar)
+  const apply=(key,fit)=>{
+    if(!fit) return;
+    const t=SIMULATOR_STATE[key];
+    if(fit.min>0) t.min=fit.min;
+    if(fit.max>fit.min) t.max=fit.max;
+    if(fit.opt>=fit.min&&fit.opt<=fit.max) t.opt=fit.opt;
+    if(fit.kwhAtOpt) t.kwhAtOpt=fit.kwhAtOpt;
+    if(fit.vaporAtOpt) t.vaporAtOpt=fit.vaporAtOpt;
+  };
+  apply('t1',fitT1);
+  apply('t2',fitT2);
+  SIMULATOR_STATE.dataSource='real';
+  const parts=[];
+  if(fitT1) parts.push(`T1: ${fitT1.n} linhas`);
+  if(fitT2) parts.push(`T2: ${fitT2.n} linhas`);
+  if(parsed.skipped) parts.push(`${parsed.skipped} linhas ignoradas`);
+  SIMULATOR_STATE.importStatus={
+    ok:true,
+    msg:`Curvas ajustadas (${parts.join(' · ')})`,
+    fitted:{t1:fitT1,t2:fitT2}
+  };
+  renderSimulatorView();
+}
+function clearRealData(){
+  SIMULATOR_STATE.importText='';
+  SIMULATOR_STATE.importStatus=null;
+  SIMULATOR_STATE.dataSource='default';
+  SIMULATOR_STATE.t1={name:'Torre 1',min:4,opt:6.5,max:8,kwhAtOpt:215,vaporAtOpt:1.85};
+  SIMULATOR_STATE.t2={name:'Torre 2',min:5,opt:8,max:10,kwhAtOpt:198,vaporAtOpt:1.78};
   renderSimulatorView();
 }
 
