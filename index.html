@@ -1964,6 +1964,8 @@ const SIMULATOR_STATE={
   hoursPerDay:20,
   humidity:35,     // % umidade do alimentado (baseline 35%)
   ambientTemp:25,  // °C (baseline 25°C)
+  projScale:'semana', // 'hora' | 'dia' | 'semana' | 'mes'
+  projBusinessDays:false, // false = dias corridos (7/30), true = dias úteis (5/22)
   showParams:false,
   showImport:false,
   importText:'',
@@ -2197,6 +2199,9 @@ function renderSimulatorView(){
     <div class="sim-chart-title">Curva de consumo específico por torre</div>
     ${buildSimulatorChart(res)}
   </div>`;
+
+  // ---- PROJEÇÃO HORA/DIA/SEMANA/MÊS ----
+  html+=buildProjectionCard();
 
   // ---- DATA SOURCE BADGE ----
   html+=`<div class="sim-source">
@@ -2765,6 +2770,673 @@ function buildDeviationHeatmap(items,days){
   return html;
 }
 
+// ============================================================
+// ARRHENIUS — Fator de Aceleração de Degradação por Equipamento
+// AF = exp(Ea/kB × (1/T_nom - 1/T_atual))
+// AF > 1 → desgaste acelerado   AF < 1 → desgaste reduzido
+// ============================================================
+const KB_EV = 8.617e-5; // constante de Boltzmann em eV/K
+
+// Parâmetros de Arrhenius por tipo de componente:
+// Ea (eV)       → energia de ativação típica para o mecanismo de falha
+// deltaT (°C)   → elevação térmica sobre T_ambiente quando I = I_nominal
+//                  T_nom = T_AMBIENTE + deltaT  (temperatura no ponto nominal)
+//                  T_op  = T_AMBIENTE + deltaT × (I_atual/I_nominal)²
+//                  Quando I = I_nom → T_op = T_nom → AF = 1.0 (vida normal)
+// vida_anos     → vida útil nominal em anos (sob T_nom)
+const ARRHENIUS_PARAMS = {
+  Ventilador:   {Ea:0.70, deltaT:80,  vida_anos:12, mecanismo:'Degradação de rolamentos (graxa, Classe F)'},
+  Bomba:        {Ea:0.65, deltaT:60,  vida_anos:10, mecanismo:'Desgaste de selos mecânicos e mancais'},
+  Correia:      {Ea:0.50, deltaT:40,  vida_anos:6,  mecanismo:'Ressecamento e fadiga da correia'},
+  Rosca:        {Ea:0.55, deltaT:50,  vida_anos:8,  mecanismo:'Desgaste abrasivo de helicóide'},
+  'Hidráulica': {Ea:0.80, deltaT:45,  vida_anos:10, mecanismo:'Oxidação do fluido hidráulico'},
+  Redler:       {Ea:0.50, deltaT:60,  vida_anos:7,  mecanismo:'Desgaste de correntes e palhetas'},
+  AirLift:      {Ea:0.70, deltaT:80,  vida_anos:12, mecanismo:'Degradação de rolamentos (alta carga)'},
+  Dosador:      {Ea:0.55, deltaT:35,  vida_anos:8,  mecanismo:'Desgaste de engrenagens dosadoras'},
+};
+
+const T_AMBIENTE = 35; // °C médio na planta
+
+function estimateOpTemp(equip) {
+  const params = ARRHENIUS_PARAMS[equip.type];
+  const deltaT = params ? params.deltaT : 80; // fallback Classe F
+
+  // Tenta usar tag de temperatura direta primeiro
+  const tempTag = equip.tags && equip.tags.find(t => t.unit === '°C' && t.type === 'analog');
+  if (tempTag && tempTag.value > 0) return tempTag.value;
+
+  // Senão, estima pela corrente com ΔT específico do tipo
+  const corrTag = equip.tags && equip.tags.find(t => t.type === 'analog' && /[Cc]orrente/.test(t.var) && t.unit === 'A');
+  const nomCorrente = equip.nominal && equip.nominal.corrente;
+  if (corrTag && nomCorrente && nomCorrente > 0) {
+    const ratio = corrTag.value / nomCorrente;
+    return T_AMBIENTE + deltaT * ratio * ratio; // I²R thermal model com ΔT do tipo
+  }
+  return null;
+}
+
+function computeArrhenius(equip) {
+  const params = ARRHENIUS_PARAMS[equip.type];
+  if (!params) return null;
+
+  const T_op_C = estimateOpTemp(equip);
+  if (T_op_C === null) return null;
+
+  // T_nom = T_ambiente + deltaT (temperatura no ponto nominal de corrente)
+  const T_nom_C = T_AMBIENTE + params.deltaT;
+  const T_nom_K = T_nom_C + 273.15;
+  const T_op_K = T_op_C + 273.15;
+
+  // AF = exp(Ea/kB × (1/T_nom - 1/T_op))
+  const AF = Math.exp((params.Ea / KB_EV) * (1 / T_nom_K - 1 / T_op_K));
+
+  // Vida ajustada
+  const vidaAjustada = params.vida_anos / AF;
+
+  // Cada 10°C acima do nominal reduz a vida pela metade (regra prática verificável com Ea≈0.7)
+  const deltaT = T_op_C - T_nom_C;
+
+  // Classificação
+  let severity, color;
+  if (AF <= 0.8) { severity = 'Resfriado'; color = '#3b82f6'; }
+  else if (AF <= 1.2) { severity = 'Normal'; color = '#28A745'; }
+  else if (AF <= 2.0) { severity = 'Atenção'; color = '#F5B041'; }
+  else if (AF <= 4.0) { severity = 'Crítico'; color = '#E74C3C'; }
+  else { severity = 'Severo'; color = '#7B241C'; }
+
+  return {
+    AF: Math.round(AF * 100) / 100,
+    T_op_C: Math.round(T_op_C * 10) / 10,
+    T_nom_C: Math.round(T_nom_C * 10) / 10,
+    deltaT: Math.round(deltaT * 10) / 10,
+    vidaNominal: params.vida_anos,
+    vidaAjustada: Math.round(vidaAjustada * 10) / 10,
+    Ea: params.Ea,
+    mecanismo: params.mecanismo,
+    severity, color
+  };
+}
+
+// ============================================================
+// STRESS TEST do Arrhenius — what-if: aumento de carga e temperatura
+// ============================================================
+const STRESS_STATE = {
+  loadMult: 1.0,   // multiplicador da corrente atual (1.0 = cenário atual)
+  tempAmb:  35,    // temperatura ambiente no cenário de stress
+};
+
+function setStressLoad(v){STRESS_STATE.loadMult=parseFloat(v)||1;renderAnalysisUpdate();}
+function setStressTemp(v){STRESS_STATE.tempAmb=parseFloat(v)||35;renderAnalysisUpdate();}
+function resetStress(){STRESS_STATE.loadMult=1.0;STRESS_STATE.tempAmb=35;renderAnalysisUpdate();}
+
+// Computa Arrhenius em um cenário hipotético (outra corrente, outra T_ambiente)
+function computeArrheniusStressed(equip, loadMult, tempAmb) {
+  const params = ARRHENIUS_PARAMS[equip.type];
+  if (!params) return null;
+  const deltaT = params.deltaT;
+  const corrTag = equip.tags && equip.tags.find(t => t.type === 'analog' && /[Cc]orrente/.test(t.var) && t.unit === 'A');
+  const nomCorrente = equip.nominal && equip.nominal.corrente;
+  if (!corrTag || !nomCorrente || nomCorrente <= 0) return null;
+
+  const ratio = (corrTag.value * loadMult) / nomCorrente;
+  const T_op_C = tempAmb + deltaT * ratio * ratio;
+  const T_nom_C = tempAmb + deltaT;
+  const T_nom_K = T_nom_C + 273.15;
+  const T_op_K = T_op_C + 273.15;
+  const AF = Math.exp((params.Ea / KB_EV) * (1/T_nom_K - 1/T_op_K));
+  return {AF, T_op_C, T_nom_C, ratio, vidaAjustada: params.vida_anos / AF};
+}
+
+// Calcula a margem de carga até AF = 1.0 (qual loadMult leva ao limiar)
+function marginToAF1(equip, tempAmb) {
+  const params = ARRHENIUS_PARAMS[equip.type];
+  if (!params) return null;
+  const corrTag = equip.tags && equip.tags.find(t => t.type === 'analog' && /[Cc]orrente/.test(t.var) && t.unit === 'A');
+  const nomCorrente = equip.nominal && equip.nominal.corrente;
+  if (!corrTag || !nomCorrente || nomCorrente <= 0) return null;
+  // AF = 1 quando T_op = T_nom, que acontece quando ratio² = 1.0 → ratio = 1.0
+  // loadMult tal que (I_atual × loadMult)/I_nom = 1.0 → loadMult = I_nom / I_atual
+  const loadMultAtAF1 = nomCorrente / corrTag.value;
+  const marginPct = (loadMultAtAF1 - 1) * 100;
+  return {loadMultAtAF1, marginPct};
+}
+
+// Re-renderiza o corpo do painel unificado de saúde + labels dos sliders
+function renderAnalysisUpdate() {
+  const body = document.getElementById('health-body');
+  if (body) body.innerHTML = buildHealthBody();
+  const loadLbl = document.getElementById('health-slider-load-val');
+  const tempLbl = document.getElementById('health-slider-temp-val');
+  if (loadLbl) loadLbl.textContent = (STRESS_STATE.loadMult*100).toFixed(0)+'%';
+  if (tempLbl) tempLbl.textContent = STRESS_STATE.tempAmb+'°C';
+}
+
+function buildStressTestBody() {
+  const s = STRESS_STATE;
+  const results = [];
+  Object.entries(EQUIPMENT).forEach(([id, eq]) => {
+    const atual = computeArrheniusStressed(eq, 1.0, 35);
+    const stressed = computeArrheniusStressed(eq, s.loadMult, s.tempAmb);
+    const margin = marginToAF1(eq, s.tempAmb);
+    if (!atual || !stressed || !margin) return;
+    results.push({id, name: eq.name, type: eq.type, area: eq.area, atual, stressed, margin});
+  });
+
+  if (!results.length) return '<div style="color:var(--text-muted);font-size:12px">Sem equipamentos elegíveis.</div>';
+
+  // ordena por AF estressado (pior primeiro)
+  results.sort((a, b) => b.stressed.AF - a.stressed.AF);
+
+  const crossed = results.filter(r => r.stressed.AF >= 1.0).length;
+  const near = results.filter(r => r.stressed.AF >= 0.8 && r.stressed.AF < 1.0).length;
+  const severityColor = af => af >= 4 ? '#7B241C' : af >= 2 ? '#E74C3C' : af >= 1.2 ? '#F5B041' : af >= 0.8 ? '#F5B041' : af >= 0.5 ? '#28A745' : '#3b82f6';
+
+  let rows = '';
+  results.forEach((r, i) => {
+    const delta = r.stressed.AF - r.atual.AF;
+    const marginText = r.margin.marginPct > 0
+      ? `+${r.margin.marginPct.toFixed(0)}%`
+      : `${r.margin.marginPct.toFixed(0)}%`;
+    const marginColor = r.margin.marginPct <= 0 ? '#E74C3C' : r.margin.marginPct < 10 ? '#F5B041' : r.margin.marginPct < 30 ? '#F5D741' : '#28A745';
+    rows += `
+      <tr style="${i%2?'background:rgba(0,0,0,0.015)':''}">
+        <td style="padding:5px 7px;font-size:11px;font-weight:600;white-space:nowrap">${r.id}</td>
+        <td style="padding:5px 7px;font-size:11px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.name}">${r.name}</td>
+        <td style="padding:5px 7px;font-size:10.5px;color:var(--text-muted)">${r.type}</td>
+        <td style="padding:5px 7px;text-align:right;font-family:monospace;font-size:11px">${r.atual.AF.toFixed(2)}×</td>
+        <td style="padding:5px 7px;text-align:right;font-family:monospace;font-size:12px;font-weight:700;color:${severityColor(r.stressed.AF)}">${r.stressed.AF.toFixed(2)}×</td>
+        <td style="padding:5px 7px;text-align:right;font-family:monospace;font-size:11px;color:${delta>0?'#E74C3C':'#28A745'}">${delta>0?'+':''}${delta.toFixed(2)}</td>
+        <td style="padding:5px 7px;text-align:right;font-family:monospace;font-size:11px">${r.stressed.T_op_C.toFixed(1)}°C</td>
+        <td style="padding:5px 7px;text-align:right;font-family:monospace;font-size:12px;font-weight:700;color:${marginColor}">${marginText}</td>
+        <td style="padding:5px 7px;text-align:right;font-family:monospace;font-size:11px">${r.stressed.vidaAjustada.toFixed(1)}a</td>
+      </tr>
+    `;
+  });
+
+  const summary = `
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px;margin-bottom:12px">
+      <div class="kpi-card"><div class="kpi-label">Cenário</div><div class="kpi-value" style="font-size:14px">${(s.loadMult*100).toFixed(0)}% carga · ${s.tempAmb}°C</div></div>
+      <div class="kpi-card" ${crossed>0?'style="border:1px solid #E74C3C"':''}><div class="kpi-label" ${crossed>0?'style="color:#E74C3C"':''}>Cruzam AF≥1.0</div><div class="kpi-value" style="color:${crossed>0?'#E74C3C':'#28A745'}">${crossed}</div><div class="kpi-hint">no cenário de stress</div></div>
+      <div class="kpi-card" ${near>0?'style="border:1px solid #F5B041"':''}><div class="kpi-label" ${near>0?'style="color:#F5B041"':''}>Perto (0.8–1.0)</div><div class="kpi-value" style="color:${near>0?'#F5B041':'#28A745'}">${near}</div><div class="kpi-hint">margem de 20%</div></div>
+    </div>
+  `;
+
+  return summary + `
+    <div style="overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse">
+        <thead>
+          <tr style="background:#F8FAFC">
+            <th style="padding:6px 7px;text-align:left;font-size:10px;color:var(--text-muted);border-bottom:2px solid #E5E7EB">TAG</th>
+            <th style="padding:6px 7px;text-align:left;font-size:10px;color:var(--text-muted);border-bottom:2px solid #E5E7EB">Equipamento</th>
+            <th style="padding:6px 7px;text-align:left;font-size:10px;color:var(--text-muted);border-bottom:2px solid #E5E7EB">Tipo</th>
+            <th style="padding:6px 7px;text-align:right;font-size:10px;color:var(--text-muted);border-bottom:2px solid #E5E7EB">AF atual</th>
+            <th style="padding:6px 7px;text-align:right;font-size:10px;color:var(--text-muted);border-bottom:2px solid #E5E7EB">AF stress</th>
+            <th style="padding:6px 7px;text-align:right;font-size:10px;color:var(--text-muted);border-bottom:2px solid #E5E7EB">Δ</th>
+            <th style="padding:6px 7px;text-align:right;font-size:10px;color:var(--text-muted);border-bottom:2px solid #E5E7EB">T<sub>op</sub></th>
+            <th style="padding:6px 7px;text-align:right;font-size:10px;color:var(--text-muted);border-bottom:2px solid #E5E7EB">Margem até AF=1</th>
+            <th style="padding:6px 7px;text-align:right;font-size:10px;color:var(--text-muted);border-bottom:2px solid #E5E7EB">Vida ajust.</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+  `;
+}
+
+function buildStressTestCard() {
+  const s = STRESS_STATE;
+  return `
+    <div class="card" style="border:1px solid var(--accent)">
+      <div class="card-title">Stress Test — What-If de carga e temperatura
+        <span class="sub">simule aumento de produção ou dia quente e veja quais equipamentos estouram AF=1.0 primeiro</span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;margin-bottom:14px">
+        <div>
+          <label style="font-size:11px;font-weight:600;color:var(--text-muted);display:flex;justify-content:space-between">
+            <span>Multiplicador de carga (corrente)</span>
+            <span style="font-family:monospace;color:#2E75B6">${(s.loadMult*100).toFixed(0)}%</span>
+          </label>
+          <input type="range" min="0.5" max="2.0" step="0.05" value="${s.loadMult}" oninput="setStressLoad(this.value)" style="width:100%;margin-top:4px">
+          <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-muted);margin-top:2px">
+            <span>50%</span><span>100% (atual)</span><span>150%</span><span>200%</span>
+          </div>
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:600;color:var(--text-muted);display:flex;justify-content:space-between">
+            <span>Temperatura ambiente</span>
+            <span style="font-family:monospace;color:#F5B041">${s.tempAmb}°C</span>
+          </label>
+          <input type="range" min="20" max="55" step="1" value="${s.tempAmb}" oninput="setStressTemp(this.value)" style="width:100%;margin-top:4px">
+          <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-muted);margin-top:2px">
+            <span>20°C</span><span>35°C (atual)</span><span>45°C</span><span>55°C</span>
+          </div>
+        </div>
+        <div style="display:flex;align-items:flex-end">
+          <button class="btn" onclick="resetStress()" style="padding:6px 14px">⟲ Reset cenário atual</button>
+        </div>
+      </div>
+      <div id="stress-test-body">${buildStressTestBody()}</div>
+    </div>
+  `;
+}
+
+// ============================================================
+// ÍNDICE DE CRITICIDADE OPERACIONAL (ICO)
+// Score composto por ativo: Arrhenius + Desvio + Variabilidade + Área + Tipo
+// ============================================================
+
+// Peso por área (criticidade do ponto na planta)
+const AREA_WEIGHT = {
+  'Caldeira Biomassa': 1.00, // single point of failure da planta toda
+  'Spray Dryer T1':    0.80,
+  'Spray Dryer T2':    0.80,
+  'Embalagem (TPN)':   0.40, // 18 linhas em paralelo, redundância alta
+  'Spray Dryer':       0.70,
+};
+
+// Peso por tipo (severidade da falha típica)
+const TYPE_WEIGHT = {
+  Ventilador:   1.00,
+  Bomba:        0.85,
+  'Hidráulica': 0.90,
+  AirLift:      0.95,
+  Correia:      0.60,
+  Rosca:        0.65,
+  Redler:       0.70,
+  Dosador:      0.55,
+  Temperatura:  0.30, // sensor, não processo
+  'Pressão':    0.30,
+  'Vazão':      0.30,
+};
+
+function computeICO(equip, equipId) {
+  // Componentes normalizados 0-100
+  const arr = computeArrhenius(equip);
+  const af = arr ? Math.min(100, (arr.AF / 4.0) * 100) : 0; // AF=4 = 100 pontos
+  const a = getEquipAnalysis(equipId);
+  const desvio = a && a.desvio !== null ? Math.min(100, (Math.abs(a.desvio)/30)*100) : 0;
+  const cv = a && a.cv !== null ? Math.min(100, (a.cv/50)*100) : 0;
+  const areaW = (AREA_WEIGHT[equip.area] || 0.5) * 100;
+  const typeW = (TYPE_WEIGHT[equip.type] || 0.5) * 100;
+
+  // Pesos dos 5 componentes (somam 1.0)
+  const w = {af:0.35, desvio:0.25, cv:0.15, area:0.15, type:0.10};
+  const ico = w.af*af + w.desvio*desvio + w.cv*cv + w.area*areaW + w.type*typeW;
+
+  let severity, color;
+  if (ico < 25)      { severity='Baixa';     color='#28A745'; }
+  else if (ico < 45) { severity='Moderada';  color='#F5D741'; }
+  else if (ico < 65) { severity='Elevada';   color='#F5B041'; }
+  else if (ico < 80) { severity='Crítica';   color='#E74C3C'; }
+  else               { severity='Emergencial';color='#7B241C'; }
+
+  return {
+    ico: Math.round(ico*10)/10,
+    components: {af:Math.round(af), desvio:Math.round(desvio), cv:Math.round(cv), area:Math.round(areaW), type:Math.round(typeW)},
+    severity, color,
+    AF: arr ? arr.AF : null,
+    desvio: a ? a.desvio : null,
+    cvRaw: a ? a.cv : null
+  };
+}
+
+function buildICOBody() {
+  const results = [];
+  Object.entries(EQUIPMENT).forEach(([id, eq]) => {
+    const r = computeICO(eq, id);
+    if (r.AF === null && r.desvio === null) return; // sem nada pra avaliar
+    results.push({id, name: eq.name, type: eq.type, area: eq.area, ...r});
+  });
+  if (!results.length) return '<div style="color:var(--text-muted);font-size:12px">Sem equipamentos com métricas suficientes.</div>';
+
+  results.sort((a, b) => b.ico - a.ico);
+
+  const buckets = {Emergencial:0,'Crítica':0,Elevada:0,Moderada:0,Baixa:0};
+  results.forEach(r => buckets[r.severity]++);
+
+  const summary = `
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:6px;margin-bottom:12px">
+      ${Object.entries(buckets).map(([sev,n])=>{
+        const colors={Emergencial:'#7B241C','Crítica':'#E74C3C',Elevada:'#F5B041',Moderada:'#F5D741',Baixa:'#28A745'};
+        return `<div class="kpi-card" ${n>0?`style="border:1px solid ${colors[sev]}"`:''}><div class="kpi-label" style="color:${colors[sev]}">${sev}</div><div class="kpi-value" style="color:${colors[sev]}">${n}</div></div>`;
+      }).join('')}
+    </div>
+  `;
+
+  let rows = '';
+  results.forEach((r, i) => {
+    const bars = (label, val, color) => `
+      <div style="display:flex;align-items:center;gap:4px;font-size:9.5px;color:var(--text-muted)">
+        <span style="width:32px;flex-shrink:0">${label}</span>
+        <div style="flex:1;height:6px;background:#E5E7EB;border-radius:3px;overflow:hidden">
+          <div style="width:${val}%;height:100%;background:${color}"></div>
+        </div>
+        <span style="width:20px;text-align:right;font-family:monospace">${val}</span>
+      </div>`;
+    rows += `
+      <tr style="${i%2?'background:rgba(0,0,0,0.015)':''}">
+        <td style="padding:6px 7px;font-size:11px;font-weight:700;white-space:nowrap">${r.id}</td>
+        <td style="padding:6px 7px;font-size:11px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.name}">${r.name}</td>
+        <td style="padding:6px 7px;font-size:10.5px;color:var(--text-muted);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.area}</td>
+        <td style="padding:6px 7px;width:180px">
+          ${bars('AF',   r.components.af,     '#E74C3C')}
+          ${bars('Desv', r.components.desvio, '#F5B041')}
+          ${bars('CV',   r.components.cv,     '#8E44AD')}
+          ${bars('Área', r.components.area,   '#2E75B6')}
+          ${bars('Tipo', r.components.type,   '#28A745')}
+        </td>
+        <td style="padding:6px 7px;text-align:right;width:70px">
+          <div style="font-family:monospace;font-size:15px;font-weight:700;color:${r.color}">${r.ico}</div>
+          <div style="font-size:9px;color:var(--text-muted)">/100</div>
+        </td>
+        <td style="padding:6px 7px;text-align:center"><span style="background:${r.color}22;color:${r.color};padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;white-space:nowrap">${r.severity}</span></td>
+      </tr>
+    `;
+  });
+
+  return summary + `
+    <div style="overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse">
+        <thead>
+          <tr style="background:#F8FAFC">
+            <th style="padding:6px 7px;text-align:left;font-size:10px;color:var(--text-muted);border-bottom:2px solid #E5E7EB">TAG</th>
+            <th style="padding:6px 7px;text-align:left;font-size:10px;color:var(--text-muted);border-bottom:2px solid #E5E7EB">Equipamento</th>
+            <th style="padding:6px 7px;text-align:left;font-size:10px;color:var(--text-muted);border-bottom:2px solid #E5E7EB">Área</th>
+            <th style="padding:6px 7px;text-align:left;font-size:10px;color:var(--text-muted);border-bottom:2px solid #E5E7EB">Componentes (0–100)</th>
+            <th style="padding:6px 7px;text-align:right;font-size:10px;color:var(--text-muted);border-bottom:2px solid #E5E7EB">ICO</th>
+            <th style="padding:6px 7px;text-align:center;font-size:10px;color:var(--text-muted);border-bottom:2px solid #E5E7EB">Severidade</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+  `;
+}
+
+function buildCriticalityCard() {
+  return `
+    <div class="card" style="border:1px solid var(--accent)">
+      <div class="card-title">Índice de Criticidade Operacional (ICO)
+        <span class="sub">score composto por ativo — ranking de onde focar manutenção/monitoramento primeiro</span>
+      </div>
+      <div style="background:#F0F9FF;border:1px solid #2E75B6;border-radius:8px;padding:10px 12px;margin-bottom:14px;font-size:11px;color:#1e3a8a">
+        <b>Composição do ICO</b> (0 a 100): 35% Arrhenius AF · 25% Desvio nominal · 15% Variabilidade (CV) · 15% Peso da área · 10% Peso do tipo.
+        Caldeira Biomassa pesa mais que Embalagem porque é ponto único da planta; Ventilador pesa mais que sensor de pressão.
+      </div>
+      <div id="ico-body">${buildICOBody()}</div>
+    </div>
+  `;
+}
+
+// ============================================================
+// PAINEL UNIFICADO DE SAÚDE OPERACIONAL & CRITICIDADE
+// Consolida: Arrhenius atual + Stress Test + ICO em uma tabela mestra
+// ============================================================
+function buildHealthBody() {
+  const s = STRESS_STATE;
+  // Monta uma linha por equipamento com TODAS as métricas
+  const rows = [];
+  Object.entries(EQUIPMENT).forEach(([id, eq]) => {
+    const atual = computeArrheniusStressed(eq, 1.0, 35);
+    const stressed = computeArrheniusStressed(eq, s.loadMult, s.tempAmb);
+    const margin = marginToAF1(eq, s.tempAmb);
+    const ico = computeICO(eq, id);
+    if (!atual && ico.AF === null && ico.desvio === null) return;
+    rows.push({id, name: eq.name, type: eq.type, area: eq.area, atual, stressed, margin, ico});
+  });
+  if (!rows.length) return '<div style="color:var(--text-muted);font-size:12px">Sem equipamentos com métricas suficientes.</div>';
+
+  // Ordenar por ICO desc por padrão (quem é mais crítico agora)
+  rows.sort((a, b) => b.ico.ico - a.ico.ico);
+
+  // KPIs consolidados
+  const nAF = rows.filter(r => r.atual).length;
+  const avgAF = nAF ? rows.filter(r=>r.atual).reduce((s,r)=>s+r.atual.AF,0)/nAF : 0;
+  const avgICO = rows.reduce((s,r)=>s+r.ico.ico,0)/rows.length;
+  const crossedStress = rows.filter(r => r.stressed && r.stressed.AF >= 1.0).length;
+  const critEmerg = rows.filter(r => r.ico.severity === 'Crítica' || r.ico.severity === 'Emergencial').length;
+  const minMargin = Math.min(...rows.filter(r=>r.margin).map(r=>r.margin.marginPct));
+  const minMarginEq = rows.find(r => r.margin && r.margin.marginPct === minMargin);
+
+  const sevColor = af => af >= 4 ? '#7B241C' : af >= 2 ? '#E74C3C' : af >= 1.2 ? '#F5B041' : af >= 0.8 ? '#F5B041' : af >= 0.5 ? '#28A745' : '#3b82f6';
+  const marginColor = p => p <= 0 ? '#E74C3C' : p < 10 ? '#F5B041' : p < 30 ? '#F5D741' : '#28A745';
+
+  const kpis = `
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-bottom:12px">
+      <div class="kpi-card"><div class="kpi-label">Analisados</div><div class="kpi-value">${rows.length}</div></div>
+      <div class="kpi-card"><div class="kpi-label">AF médio atual</div><div class="kpi-value" style="color:${avgAF>1.2?'#F5B041':'#28A745'}">${avgAF.toFixed(2)}×</div></div>
+      <div class="kpi-card"><div class="kpi-label">ICO médio</div><div class="kpi-value" style="color:${avgICO>65?'#E74C3C':avgICO>45?'#F5B041':'#28A745'}">${avgICO.toFixed(0)}</div></div>
+      <div class="kpi-card" ${critEmerg>0?'style="border:1px solid #E74C3C"':''}><div class="kpi-label" ${critEmerg>0?'style="color:#E74C3C"':''}>Crít./Emerg.</div><div class="kpi-value" style="color:${critEmerg>0?'#E74C3C':'#28A745'}">${critEmerg}</div></div>
+      <div class="kpi-card" ${crossedStress>0?'style="border:1px solid #F5B041"':''}><div class="kpi-label" ${crossedStress>0?'style="color:#F5B041"':''}>Cruzam AF≥1 (stress)</div><div class="kpi-value" style="color:${crossedStress>0?'#F5B041':'#28A745'}">${crossedStress}</div><div class="kpi-hint">${(s.loadMult*100).toFixed(0)}% · ${s.tempAmb}°C</div></div>
+      ${minMarginEq?`<div class="kpi-card" style="border:1px solid ${marginColor(minMargin)}"><div class="kpi-label">Menor margem</div><div class="kpi-value" style="color:${marginColor(minMargin)};font-size:14px">${minMarginEq.id}</div><div class="kpi-hint">${minMargin>=0?'+':''}${minMargin.toFixed(0)}%</div></div>`:''}
+    </div>
+  `;
+
+  // Tabela mestra — uma linha por equipamento com todas as dimensões
+  let tableRows = '';
+  rows.forEach((r, i) => {
+    const afAtual = r.atual ? r.atual.AF.toFixed(2)+'×' : '—';
+    const afStress = r.stressed ? r.stressed.AF.toFixed(2)+'×' : '—';
+    const afStressCol = r.stressed ? sevColor(r.stressed.AF) : 'var(--text-muted)';
+    const topC = r.stressed ? r.stressed.T_op_C.toFixed(1)+'°C' : '—';
+    const marginTxt = r.margin ? `${r.margin.marginPct>=0?'+':''}${r.margin.marginPct.toFixed(0)}%` : '—';
+    const marginCol = r.margin ? marginColor(r.margin.marginPct) : 'var(--text-muted)';
+    tableRows += `
+      <tr style="${i%2?'background:rgba(0,0,0,0.015)':''}">
+        <td style="padding:6px 7px;font-size:11px;font-weight:700;white-space:nowrap">${r.id}</td>
+        <td style="padding:6px 7px;font-size:11px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.name}">${r.name}</td>
+        <td style="padding:6px 7px;font-size:10.5px;color:var(--text-muted);max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.area}</td>
+        <td style="padding:6px 7px;font-size:10.5px;color:var(--text-muted)">${r.type}</td>
+        <td style="padding:6px 7px;text-align:right;font-family:monospace;font-size:11px">${topC}</td>
+        <td style="padding:6px 7px;text-align:right;font-family:monospace;font-size:11px;color:${r.atual?sevColor(r.atual.AF):'var(--text-muted)'}">${afAtual}</td>
+        <td style="padding:6px 7px;text-align:right;font-family:monospace;font-size:12px;font-weight:700;color:${afStressCol}">${afStress}</td>
+        <td style="padding:6px 7px;text-align:right;font-family:monospace;font-size:11px;font-weight:700;color:${marginCol}">${marginTxt}</td>
+        <td style="padding:6px 7px;text-align:right;font-family:monospace;font-size:13px;font-weight:700;color:${r.ico.color}">${r.ico.ico.toFixed(0)}</td>
+        <td style="padding:6px 7px;text-align:center"><span style="background:${r.ico.color}22;color:${r.ico.color};padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;white-space:nowrap">${r.ico.severity}</span></td>
+      </tr>
+    `;
+  });
+
+  const table = `
+    <div style="overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse">
+        <thead>
+          <tr style="background:#F8FAFC">
+            <th style="padding:6px 7px;text-align:left;font-size:10px;color:var(--text-muted);border-bottom:2px solid #E5E7EB">TAG</th>
+            <th style="padding:6px 7px;text-align:left;font-size:10px;color:var(--text-muted);border-bottom:2px solid #E5E7EB">Equipamento</th>
+            <th style="padding:6px 7px;text-align:left;font-size:10px;color:var(--text-muted);border-bottom:2px solid #E5E7EB">Área</th>
+            <th style="padding:6px 7px;text-align:left;font-size:10px;color:var(--text-muted);border-bottom:2px solid #E5E7EB">Tipo</th>
+            <th style="padding:6px 7px;text-align:right;font-size:10px;color:var(--text-muted);border-bottom:2px solid #E5E7EB" title="Temperatura operacional no cenário stress">T<sub>op</sub> (stress)</th>
+            <th style="padding:6px 7px;text-align:right;font-size:10px;color:var(--text-muted);border-bottom:2px solid #E5E7EB" title="Arrhenius AF atual (100% carga, 35°C)">AF atual</th>
+            <th style="padding:6px 7px;text-align:right;font-size:10px;color:var(--text-muted);border-bottom:2px solid #E5E7EB" title="AF no cenário estressado">AF stress</th>
+            <th style="padding:6px 7px;text-align:right;font-size:10px;color:var(--text-muted);border-bottom:2px solid #E5E7EB" title="Quanto a corrente atual pode subir até AF = 1.0">Margem</th>
+            <th style="padding:6px 7px;text-align:right;font-size:10px;color:var(--text-muted);border-bottom:2px solid #E5E7EB" title="Índice de Criticidade Operacional (0-100)">ICO</th>
+            <th style="padding:6px 7px;text-align:center;font-size:10px;color:var(--text-muted);border-bottom:2px solid #E5E7EB">Severidade</th>
+          </tr>
+        </thead>
+        <tbody>${tableRows}</tbody>
+      </table>
+    </div>
+  `;
+
+  return kpis + table;
+}
+
+function buildHealthCard() {
+  const s = STRESS_STATE;
+  return `
+    <div class="card" style="border:1px solid var(--accent)">
+      <div class="card-title">Saúde Operacional &amp; Criticidade — Arrhenius · Stress · ICO
+        <span class="sub">ranking unificado: qual ativo focar e o que acontece se a carga ou temperatura subir</span>
+      </div>
+
+      <details style="margin-bottom:12px">
+        <summary style="cursor:pointer;font-size:11px;color:var(--text-muted);padding:6px 0">📐 Modelo e pesos (clique para expandir)</summary>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:10px;margin-top:8px">
+          <div style="background:#F8FAFC;border:1px solid #E5E7EB;border-radius:6px;padding:10px;font-size:10.5px">
+            <div style="font-weight:700;margin-bottom:4px">Arrhenius — Fator de Aceleração</div>
+            <div style="font-family:monospace;margin-bottom:2px">AF = exp(E<sub>a</sub>/k<sub>B</sub> × (1/T<sub>nom</sub> − 1/T<sub>op</sub>))</div>
+            <div style="color:var(--text-muted)">T<sub>op</sub> = T<sub>amb</sub> + ΔT<sub>tipo</sub> × (I/I<sub>nom</sub>)². Consistente com o heatmap: I = I<sub>nom</sub> → AF = 1.0.</div>
+          </div>
+          <div style="background:#F8FAFC;border:1px solid #E5E7EB;border-radius:6px;padding:10px;font-size:10.5px">
+            <div style="font-weight:700;margin-bottom:4px">ICO — Índice de Criticidade</div>
+            <div style="color:var(--text-muted)">35% AF · 25% Desvio · 15% CV · 15% Peso da área · 10% Peso do tipo. Caldeira pesa mais que Embalagem; Ventilador pesa mais que sensor.</div>
+          </div>
+          <div style="background:#F8FAFC;border:1px solid #E5E7EB;border-radius:6px;padding:10px;font-size:10.5px">
+            <div style="font-weight:700;margin-bottom:4px">Severidade ICO</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:2px">
+              <span style="color:#28A745">Baixa &lt; 25</span>
+              <span style="color:#F5D741">Moderada 25–45</span>
+              <span style="color:#F5B041">Elevada 45–65</span>
+              <span style="color:#E74C3C">Crítica 65–80</span>
+              <span style="color:#7B241C">Emergencial &gt; 80</span>
+            </div>
+          </div>
+        </div>
+      </details>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:14px;align-items:end;margin-bottom:14px;padding:10px 12px;background:#F0F9FF;border:1px solid #BFDBFE;border-radius:8px">
+        <div>
+          <label style="font-size:10.5px;font-weight:600;color:var(--text-muted);display:flex;justify-content:space-between">
+            <span>Stress: multiplicador de carga</span>
+            <span id="health-slider-load-val" style="font-family:monospace;color:#2E75B6">${(s.loadMult*100).toFixed(0)}%</span>
+          </label>
+          <input type="range" min="0.5" max="2.0" step="0.05" value="${s.loadMult}" oninput="setStressLoad(this.value)" style="width:100%;margin-top:2px">
+        </div>
+        <div>
+          <label style="font-size:10.5px;font-weight:600;color:var(--text-muted);display:flex;justify-content:space-between">
+            <span>Stress: temperatura ambiente</span>
+            <span id="health-slider-temp-val" style="font-family:monospace;color:#F5B041">${s.tempAmb}°C</span>
+          </label>
+          <input type="range" min="20" max="55" step="1" value="${s.tempAmb}" oninput="setStressTemp(this.value)" style="width:100%;margin-top:2px">
+        </div>
+        <button class="btn" onclick="resetStress()" style="padding:6px 12px;font-size:11px">⟲ Reset</button>
+      </div>
+
+      <div id="health-body">${buildHealthBody()}</div>
+    </div>
+  `;
+}
+
+function buildArrheniusCard() {
+  // Calcula Arrhenius para todos os equipamentos que se encaixam
+  const results = [];
+  Object.entries(EQUIPMENT).forEach(([id, eq]) => {
+    const r = computeArrhenius(eq);
+    if (r) results.push({id, name: eq.name, area: eq.area, type: eq.type, ...r});
+  });
+
+  if (results.length === 0) return '';
+
+  results.sort((a, b) => b.AF - a.AF); // pior primeiro
+
+  const sevCounts = {Severo:0, 'Crítico':0, 'Atenção':0, Normal:0, Resfriado:0};
+  results.forEach(r => { sevCounts[r.severity] = (sevCounts[r.severity] || 0) + 1; });
+
+  const avgAF = results.reduce((s, r) => s + r.AF, 0) / results.length;
+  const worst = results[0];
+  const best = results[results.length - 1];
+
+  // Barra de gauge para cada equipamento
+  const maxAF = Math.max(...results.map(r => r.AF), 2);
+
+  const tableRows = results.map((r, i) => {
+    const barW = Math.min(100, (r.AF / maxAF) * 100);
+    return `
+      <tr style="${i % 2 ? 'background:rgba(0,0,0,0.015)' : ''}">
+        <td style="padding:6px 8px;font-weight:600;font-size:11px;white-space:nowrap">${r.id}</td>
+        <td style="padding:6px 8px;font-size:11px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.name}">${r.name}</td>
+        <td style="padding:6px 8px;font-size:11px;color:var(--text-muted)">${r.type}</td>
+        <td style="padding:6px 8px;text-align:right;font-family:monospace;font-size:11px">${r.T_op_C}°C</td>
+        <td style="padding:6px 8px;text-align:right;font-family:monospace;font-size:11px;color:var(--text-muted)">${r.T_nom_C}°C</td>
+        <td style="padding:6px 8px;text-align:right;font-family:monospace;font-size:11px;color:${r.deltaT > 0 ? '#E74C3C' : r.deltaT < -5 ? '#3b82f6' : '#28A745'}">${r.deltaT > 0 ? '+' : ''}${r.deltaT}°C</td>
+        <td style="padding:6px 8px;width:140px">
+          <div style="display:flex;align-items:center;gap:6px">
+            <div style="flex:1;height:8px;background:#E5E7EB;border-radius:4px;overflow:hidden">
+              <div style="width:${barW}%;height:100%;background:${r.color};border-radius:4px;transition:width .3s"></div>
+            </div>
+            <span style="font-family:monospace;font-weight:700;font-size:11px;min-width:36px;text-align:right;color:${r.color}">${r.AF.toFixed(2)}×</span>
+          </div>
+        </td>
+        <td style="padding:6px 8px;text-align:right;font-family:monospace;font-size:11px">${r.vidaNominal}a</td>
+        <td style="padding:6px 8px;text-align:right;font-family:monospace;font-size:11px;font-weight:700;color:${r.color}">${r.vidaAjustada}a</td>
+        <td style="padding:6px 8px;text-align:center"><span style="background:${r.color}22;color:${r.color};padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700">${r.severity}</span></td>
+      </tr>
+    `;
+  }).join('');
+
+  // Fórmula box
+  const formula = `AF = exp(E<sub>a</sub> / k<sub>B</sub> × (1/T<sub>nom</sub> − 1/T<sub>op</sub>))`;
+  const formula2 = `Vida ajustada = Vida nominal / AF`;
+
+  return `
+    <div class="card" style="border:1px solid var(--accent)">
+      <div class="card-title">Arrhenius — Fator de Aceleração de Degradação
+        <span class="sub">manutenção preditiva baseada na temperatura estimada de operação</span>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;margin-bottom:14px">
+        <div class="kpi-card"><div class="kpi-label">Equipamentos analisados</div><div class="kpi-value">${results.length}</div></div>
+        <div class="kpi-card"><div class="kpi-label">AF médio</div><div class="kpi-value" style="color:${avgAF>2?'#E74C3C':avgAF>1.2?'#F5B041':'#28A745'}">${avgAF.toFixed(2)}×</div></div>
+        <div class="kpi-card" style="border:1px solid ${worst.color}"><div class="kpi-label">Pior caso</div><div class="kpi-value" style="color:${worst.color}">${worst.id}</div><div class="kpi-hint">AF ${worst.AF.toFixed(2)}× · vida ${worst.vidaAjustada}a</div></div>
+        <div class="kpi-card"><div class="kpi-label">Melhor caso</div><div class="kpi-value" style="color:${best.color}">${best.id}</div><div class="kpi-hint">AF ${best.AF.toFixed(2)}× · vida ${best.vidaAjustada}a</div></div>
+        ${sevCounts.Severo > 0 ? `<div class="kpi-card" style="border:1px solid #7B241C"><div class="kpi-label" style="color:#7B241C">Severo</div><div class="kpi-value" style="color:#7B241C">${sevCounts.Severo}</div></div>` : ''}
+        ${sevCounts['Crítico'] > 0 ? `<div class="kpi-card" style="border:1px solid #E74C3C"><div class="kpi-label" style="color:#E74C3C">Crítico</div><div class="kpi-value" style="color:#E74C3C">${sevCounts['Crítico']}</div></div>` : ''}
+      </div>
+
+      <div style="display:flex;gap:12px;margin-bottom:14px;flex-wrap:wrap">
+        <div style="flex:1;min-width:300px;background:#F8FAFC;border-radius:8px;padding:12px;border:1px solid #E5E7EB">
+          <div style="font-size:11px;color:var(--text-muted);font-weight:600;margin-bottom:6px">Modelo utilizado</div>
+          <div style="font-size:13px;font-family:monospace;margin-bottom:4px">${formula}</div>
+          <div style="font-size:13px;font-family:monospace;margin-bottom:8px">${formula2}</div>
+          <div style="font-size:10px;color:var(--text-muted)">
+            k<sub>B</sub> = 8.617×10⁻⁵ eV/K · T em Kelvin (°C + 273.15)<br>
+            T<sub>nom</sub> = T<sub>amb</sub> + ΔT<sub>tipo</sub> · T<sub>op</sub> = T<sub>amb</sub> + ΔT<sub>tipo</sub> × (I<sub>atual</sub>/I<sub>nom</sub>)² (T<sub>amb</sub> = ${T_AMBIENTE}°C)<br>
+            Quando I = I<sub>nom</sub> → T<sub>op</sub> = T<sub>nom</sub> → AF = 1.0 (vida normal) · Consistente com heatmap de desvio
+          </div>
+        </div>
+        <div style="flex:1;min-width:260px;background:#FFF4E5;border:1px solid #F5B766;border-radius:8px;padding:12px">
+          <div style="font-size:11px;color:#8A5200;font-weight:600;margin-bottom:6px">Interpretação do AF</div>
+          <div style="font-size:11px;color:#8A5200;display:grid;gap:3px">
+            <div><span style="background:#3b82f622;color:#3b82f6;padding:1px 6px;border-radius:4px;font-weight:700">AF ≤ 0.8</span> Resfriado — desgaste reduzido</div>
+            <div><span style="background:#28A74522;color:#28A745;padding:1px 6px;border-radius:4px;font-weight:700">0.8 < AF ≤ 1.2</span> Normal — vida útil como esperada</div>
+            <div><span style="background:#F5B04122;color:#F5B041;padding:1px 6px;border-radius:4px;font-weight:700">1.2 < AF ≤ 2.0</span> Atenção — desgaste acelerado</div>
+            <div><span style="background:#E74C3C22;color:#E74C3C;padding:1px 6px;border-radius:4px;font-weight:700">2.0 < AF ≤ 4.0</span> Crítico — vida útil reduzida pela metade ou mais</div>
+            <div><span style="background:#7B241C22;color:#7B241C;padding:1px 6px;border-radius:4px;font-weight:700">AF > 4.0</span> Severo — degradação extrema, revisar urgente</div>
+          </div>
+        </div>
+      </div>
+
+      <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse">
+          <thead>
+            <tr style="background:#F8FAFC">
+              <th style="padding:6px 8px;text-align:left;font-size:10px;color:var(--text-muted);border-bottom:2px solid #E5E7EB">TAG</th>
+              <th style="padding:6px 8px;text-align:left;font-size:10px;color:var(--text-muted);border-bottom:2px solid #E5E7EB">Equipamento</th>
+              <th style="padding:6px 8px;text-align:left;font-size:10px;color:var(--text-muted);border-bottom:2px solid #E5E7EB">Tipo</th>
+              <th style="padding:6px 8px;text-align:right;font-size:10px;color:var(--text-muted);border-bottom:2px solid #E5E7EB">T<sub>op</sub></th>
+              <th style="padding:6px 8px;text-align:right;font-size:10px;color:var(--text-muted);border-bottom:2px solid #E5E7EB">T<sub>nom</sub></th>
+              <th style="padding:6px 8px;text-align:right;font-size:10px;color:var(--text-muted);border-bottom:2px solid #E5E7EB">ΔT</th>
+              <th style="padding:6px 8px;text-align:left;font-size:10px;color:var(--text-muted);border-bottom:2px solid #E5E7EB">AF (Arrhenius)</th>
+              <th style="padding:6px 8px;text-align:right;font-size:10px;color:var(--text-muted);border-bottom:2px solid #E5E7EB">Vida nom.</th>
+              <th style="padding:6px 8px;text-align:right;font-size:10px;color:var(--text-muted);border-bottom:2px solid #E5E7EB">Vida ajust.</th>
+              <th style="padding:6px 8px;text-align:center;font-size:10px;color:var(--text-muted);border-bottom:2px solid #E5E7EB">Status</th>
+            </tr>
+          </thead>
+          <tbody>${tableRows}</tbody>
+        </table>
+      </div>
+
+      <div style="margin-top:12px;padding:10px;background:#F8FAFC;border-radius:8px;font-size:10px;color:var(--text-muted)">
+        <b>E<sub>a</sub> e ΔT por tipo:</b>
+        ${Object.entries(ARRHENIUS_PARAMS).map(([tipo, p]) =>
+          `${tipo}: E<sub>a</sub>=${p.Ea} eV, ΔT=${p.deltaT}°C → T<sub>nom</sub>=${T_AMBIENTE+p.deltaT}°C (${p.mecanismo})`
+        ).join(' · ')}
+      </div>
+    </div>
+  `;
+}
+
 function renderAnalysis(){
   const items=Object.entries(EQUIPMENT).map(([k,e])=>{
     const a=getEquipAnalysis(k);
@@ -2825,6 +3497,9 @@ function renderAnalysis(){
     </div>`;
   });
   html+=`</div></div>`;
+
+  // ---- SAÚDE OPERACIONAL & CRITICIDADE (unificado: Arrhenius + Stress + ICO) ----
+  html+=buildHealthCard();
 
   return html;
 }
@@ -3068,6 +3743,162 @@ function syncSimFromFunnel(){
   s.tonsPerDay=Math.round(f.total*s.hoursPerDay);
   s.dataSource='real';
   renderSimulatorView();
+}
+
+function setProjScale(sc){SIMULATOR_STATE.projScale=sc;renderSimulatorView();}
+function toggleProjBusinessDays(){SIMULATOR_STATE.projBusinessDays=!SIMULATOR_STATE.projBusinessDays;renderSimulatorView();}
+
+// Projeção hora/dia/semana/mês a partir da demanda atual do funil
+function buildProjectionCard(){
+  const s=SIMULATOR_STATE;
+  const f=computeFunnelLoads();
+  const r1=f.T1>0?simulateTower(s.t1,f.T1,s.humidity,s.ambientTemp):null;
+  const r2=f.T2>0?simulateTower(s.t2,f.T2,s.humidity,s.ambientTemp):null;
+  const ok1=r1&&r1.viavel, ok2=r2&&r2.viavel;
+
+  // Tarifas de referência (mesmas usadas em computeSimulation)
+  const TARIFA_KWH=0.55;  // R$/kWh
+  const TARIFA_VAPOR=85;  // R$/ton vapor
+
+  // Valores por hora (base)
+  const hT1={ton:ok1?f.T1:0, kwh:ok1?r1.kwhPerTon*f.T1:0, vapor:ok1?r1.vaporPerTon*f.T1:0};
+  const hT2={ton:ok2?f.T2:0, kwh:ok2?r2.kwhPerTon*f.T2:0, vapor:ok2?r2.vaporPerTon*f.T2:0};
+  hT1.custo=hT1.kwh*TARIFA_KWH+hT1.vapor*TARIFA_VAPOR;
+  hT2.custo=hT2.kwh*TARIFA_KWH+hT2.vapor*TARIFA_VAPOR;
+
+  const daysWeek=s.projBusinessDays?5:7;
+  const daysMonth=s.projBusinessDays?22:30;
+  const scales={
+    hora:{label:'por hora',hours:1,sub:'1 h de operação'},
+    dia:{label:'por dia',hours:s.hoursPerDay,sub:`${s.hoursPerDay} h × 1 dia`},
+    semana:{label:'por semana',hours:s.hoursPerDay*daysWeek,sub:`${s.hoursPerDay} h × ${daysWeek} dias`},
+    mes:{label:'por mês',hours:s.hoursPerDay*daysMonth,sub:`${s.hoursPerDay} h × ${daysMonth} dias`}
+  };
+  const active=scales[s.projScale]||scales.semana;
+
+  // Formatações
+  const fmtT=v=>v>=1000?(v/1000).toFixed(1)+' k':v.toFixed(1);
+  const fmtK=v=>v>=1e6?(v/1e6).toFixed(2)+' M':v>=1000?(v/1000).toFixed(1)+' k':v.toFixed(0);
+  const fmtR=v=>{
+    if(v>=1e6) return 'R$ '+(v/1e6).toFixed(2)+' M';
+    if(v>=1000) return 'R$ '+(v/1000).toFixed(1)+' k';
+    return 'R$ '+v.toFixed(0);
+  };
+
+  // Linhas da tabela — uma linha por escala, com valores de T1, T2 e Total
+  const rows=[
+    {k:'hora',label:'Por hora',sub:'1 h de operação',h:1},
+    {k:'dia',label:'Por dia',sub:`${s.hoursPerDay} h × 1 dia`,h:s.hoursPerDay},
+    {k:'semana',label:'Por semana',sub:`${s.hoursPerDay} h × ${daysWeek} dias`,h:s.hoursPerDay*daysWeek},
+    {k:'mes',label:'Por mês',sub:`${s.hoursPerDay} h × ${daysMonth} dias`,h:s.hoursPerDay*daysMonth}
+  ];
+
+  let tableRows='';
+  rows.forEach(r=>{
+    const m=r.h;
+    const t1={ton:hT1.ton*m,kwh:hT1.kwh*m,vapor:hT1.vapor*m,custo:hT1.custo*m};
+    const t2={ton:hT2.ton*m,kwh:hT2.kwh*m,vapor:hT2.vapor*m,custo:hT2.custo*m};
+    const tot={ton:t1.ton+t2.ton,kwh:t1.kwh+t2.kwh,vapor:t1.vapor+t2.vapor,custo:t1.custo+t2.custo};
+    const highlight=r.k===s.projScale?'background:#EAF3FB;border-left:3px solid #2E75B6':'';
+    tableRows+=`
+      <tr style="${highlight}">
+        <td style="padding:8px 10px;border-bottom:1px solid #E5E7EB">
+          <div style="font-weight:700;font-size:12px">${r.label}</div>
+          <div style="font-size:10px;color:var(--text-muted)">${r.sub}</div>
+        </td>
+        <td style="padding:8px 10px;border-bottom:1px solid #E5E7EB;text-align:right;font-family:monospace;font-size:11.5px;color:#2E75B6">
+          <div><b>${fmtT(t1.ton)}</b> t</div>
+          <div style="color:var(--text-muted)">${fmtK(t1.kwh)} kWh</div>
+          <div style="color:var(--text-muted)">${fmtT(t1.vapor)} t vap</div>
+          <div>${fmtR(t1.custo)}</div>
+        </td>
+        <td style="padding:8px 10px;border-bottom:1px solid #E5E7EB;text-align:right;font-family:monospace;font-size:11.5px;color:#F97316">
+          <div><b>${fmtT(t2.ton)}</b> t</div>
+          <div style="color:var(--text-muted)">${fmtK(t2.kwh)} kWh</div>
+          <div style="color:var(--text-muted)">${fmtT(t2.vapor)} t vap</div>
+          <div>${fmtR(t2.custo)}</div>
+        </td>
+        <td style="padding:8px 10px;border-bottom:1px solid #E5E7EB;text-align:right;font-family:monospace;font-size:12px">
+          <div style="font-weight:800"><b>${fmtT(tot.ton)}</b> t</div>
+          <div style="color:var(--text-muted)">${fmtK(tot.kwh)} kWh</div>
+          <div style="color:var(--text-muted)">${fmtT(tot.vapor)} t vap</div>
+          <div style="font-weight:700;color:#15803d">${fmtR(tot.custo)}</div>
+        </td>
+      </tr>
+    `;
+  });
+
+  // Mini-chart de tendência: barras de custo R$ por escala
+  const costPoints=rows.map(r=>({label:r.label,val:(hT1.custo+hT2.custo)*r.h}));
+  const maxCost=Math.max(...costPoints.map(p=>p.val),1);
+  const bars=costPoints.map(p=>{
+    const pct=(p.val/maxCost)*100;
+    const active=rows.find(r=>r.label===p.label).k===s.projScale;
+    return `
+      <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px">
+        <div style="font-size:10px;color:var(--text-muted);text-align:center;white-space:nowrap">${fmtR(p.val)}</div>
+        <div style="width:100%;max-width:60px;height:80px;display:flex;align-items:flex-end">
+          <div style="width:100%;height:${Math.max(4,pct)}%;background:${active?'linear-gradient(180deg,#2E75B6,#1e5486)':'#93C5FD'};border-radius:4px 4px 0 0;transition:all .3s"></div>
+        </div>
+        <div style="font-size:10px;font-weight:${active?'700':'500'};color:${active?'#2E75B6':'var(--text-muted)'};text-align:center">${p.label.replace('Por ','')}</div>
+      </div>
+    `;
+  }).join('');
+
+  // Contexto: avisa se alguma torre está fora de faixa
+  let warn='';
+  if(r1&&!r1.viavel) warn+=`<div style="color:#E74C3C;font-size:11px">⚠ T1 ${r1.motivo} — projeção exclui T1</div>`;
+  if(r2&&!r2.viavel) warn+=`<div style="color:#E74C3C;font-size:11px">⚠ T2 ${r2.motivo} — projeção exclui T2</div>`;
+  if(f.T1===0&&f.T2===0) warn+=`<div style="color:#F5B041;font-size:11px">⚠ Nenhuma demanda do funil — ative ao menos uma linha</div>`;
+
+  return `
+    <div class="card" style="margin-top:14px">
+      <div style="display:flex;justify-content:space-between;align-items:start;flex-wrap:wrap;gap:10px;margin-bottom:12px">
+        <div>
+          <div style="font-weight:700;font-size:14px">Projeção de consumo — tendência hora/dia/semana/mês</div>
+          <div style="color:var(--text-muted);font-size:11px">baseado na demanda atual do funil (${f.T1.toFixed(1)} + ${f.T2.toFixed(1)} = ${f.total.toFixed(1)} t/h) e ${s.hoursPerDay} h/dia</div>
+        </div>
+        <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text-muted);cursor:pointer;background:#F3F4F6;padding:5px 10px;border-radius:6px">
+          <input type="checkbox" ${s.projBusinessDays?'checked':''} onchange="toggleProjBusinessDays()" style="margin:0">
+          contar só dias úteis (5/22)
+        </label>
+      </div>
+
+      <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap">
+        ${['hora','dia','semana','mes'].map(sc=>{
+          const labels={hora:'Hora',dia:'Dia',semana:'Semana',mes:'Mês'};
+          const act=s.projScale===sc;
+          return `<button onclick="setProjScale('${sc}')" style="padding:6px 14px;border-radius:6px;border:1px solid ${act?'#2E75B6':'#E5E7EB'};background:${act?'#2E75B6':'#fff'};color:${act?'#fff':'#6B7280'};font-size:12px;font-weight:700;cursor:pointer">${labels[sc]}</button>`;
+        }).join('')}
+      </div>
+
+      ${warn?`<div style="background:#FEF3C7;border:1px solid #F5B041;border-radius:6px;padding:8px 12px;margin-bottom:10px">${warn}</div>`:''}
+
+      <div style="display:grid;grid-template-columns:1fr 260px;gap:14px;align-items:start">
+        <div style="overflow-x:auto">
+          <table style="width:100%;border-collapse:collapse">
+            <thead>
+              <tr style="background:#F8FAFC">
+                <th style="padding:8px 10px;text-align:left;font-size:11px;color:var(--text-muted);border-bottom:2px solid #E5E7EB">Período</th>
+                <th style="padding:8px 10px;text-align:right;font-size:11px;color:#2E75B6;border-bottom:2px solid #E5E7EB">Torre 1</th>
+                <th style="padding:8px 10px;text-align:right;font-size:11px;color:#F97316;border-bottom:2px solid #E5E7EB">Torre 2</th>
+                <th style="padding:8px 10px;text-align:right;font-size:11px;border-bottom:2px solid #E5E7EB">Total</th>
+              </tr>
+            </thead>
+            <tbody>${tableRows}</tbody>
+          </table>
+        </div>
+
+        <div style="background:#F8FAFC;border-radius:8px;padding:12px">
+          <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;font-weight:600">Tendência de custo total</div>
+          <div style="display:flex;align-items:flex-end;gap:8px;height:120px">
+            ${bars}
+          </div>
+          <div style="font-size:10px;color:var(--text-muted);margin-top:8px;text-align:center">tarifas: R$ 0,55/kWh · R$ 85/t vapor</div>
+        </div>
+      </div>
+    </div>
+  `;
 }
 function toggleLineTower(lineId,tower){
   const l=LINES_STATE.lines.find(x=>x.id===lineId); if(!l) return;
