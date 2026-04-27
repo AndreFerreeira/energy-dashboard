@@ -97,6 +97,17 @@ td { padding:10px 10px; font-size:12px; border-bottom:1px solid var(--border); c
 tr:hover td { background:var(--accent-light); }
 tr.clickable { cursor:pointer; }
 
+/* TOOLTIP COVERAGE */
+.cov-row { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+.cov-chip { position:relative; display:inline-flex; align-items:center; gap:5px; padding:6px 12px; border-radius:10px; font-size:11px; font-weight:600; background:var(--card2); border:1px solid var(--border); cursor:default; transition:all .15s; }
+.cov-chip:hover { border-color:var(--accent); box-shadow:var(--shadow-md); z-index:50; }
+.cov-chip .cov-count { font-size:10px; color:var(--dim); font-weight:500; }
+.cov-tip { display:none; position:absolute; bottom:calc(100% + 8px); left:50%; transform:translateX(-50%); background:var(--text); color:#fff; border-radius:10px; padding:10px 14px; font-size:10px; line-height:1.6; white-space:nowrap; z-index:100; box-shadow:var(--shadow-lg); pointer-events:none; }
+.cov-tip::after { content:''; position:absolute; top:100%; left:50%; transform:translateX(-50%); border:5px solid transparent; border-top-color:var(--text); }
+.cov-chip:hover .cov-tip { display:block; }
+.cov-gap { font-size:10px; color:var(--dim); margin-left:4px; }
+.cov-gap::before { content:'⚠'; margin-right:3px; font-size:9px; }
+
 /* MODAL */
 .modal-overlay { position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(15,23,42,0.35); backdrop-filter:blur(6px); z-index:1000; display:flex; justify-content:center; align-items:flex-start; padding:30px 20px; overflow:auto; }
 .modal { background:var(--card); border-radius:18px; border:1px solid var(--border); max-width:900px; width:100%; color:var(--text); position:relative; box-shadow:var(--shadow-lg); }
@@ -398,7 +409,7 @@ tr.clickable { cursor:pointer; }
   </button>
   <button class="tab-btn" data-tab="simulator">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
-    <span class="tab-btn-label">Simulador T1/T2</span>
+    <span class="tab-btn-label">Distribuição T1/T2</span>
   </button>
 
   <div class="sidebar-section">Ativos</div>
@@ -522,7 +533,7 @@ const EQUIPMENT = {
     {var:"Status Motor",value:3,min:3,max:3,std:0,unit:"",n:4,type:"status"},
     {var:"Falha Acionamento",value:0,min:0,max:0,std:0,unit:"",n:3,type:"bool"},
   ]},
-  F1335:{id:"F1335",name:"Ventilador Diluição 02B",area:"Caldeira Biomassa",type:"Ventilador",plc:"ControlLogixBiomassa",status:"Operando",nominal:{corrente:130,speed:100},tags:[
+  F1335:{id:"F1335",name:"Ventilador Diluição 02B",area:"Caldeira Biomassa",type:"Ventilador",plc:"ControlLogixBiomassa",status:"Operando",nominal:{corrente:25,speed:100},tags:[
     {var:"Corrente Atual do Motor",value:17.14,min:16.48,max:20.67,std:0.65,unit:"A",n:474,type:"analog"},
     {var:"Leitura Corrente Drive (raw)",value:943.14,min:907,max:1139,std:35.87,unit:"raw",n:474,type:"raw"},
     {var:"Setpoint Velocidade Motor",value:37.63,min:28.6,max:52.92,std:9.48,unit:"%",n:473,type:"analog"},
@@ -708,12 +719,34 @@ function motorLabel(v){ return v===3?'Operando':v===0?'Parado':v===5?'Falha':`St
 function esc(s){ const d=document.createElement('div');d.textContent=s;return d.innerHTML; }
 function getEquipAnalysis(id){
   const e=EQUIPMENT[id]; if(!e) return null;
-  const pt=e.tags.find(t=>t.type==='analog');
-  const nk=Object.keys(e.nominal)[0];
-  const nv=e.nominal[nk];
-  const d=pt&&nv?desvio(pt.value,nv):null;
-  const ide=pt&&nv?pt.value/nv:null;
-  const cv=pt&&pt.value>0?(pt.std/pt.value*100):null;
+  const nom=e.nominal||{};
+  const nk=Object.keys(nom)[0];
+  const nv=nom[nk];
+  if(!nk||nv===undefined||nv===null) return null;
+
+  // Busca o tag que corresponde ao nominal
+  let pt=null;
+  if(nk==='corrente'){
+    pt=e.tags.find(t=>t.type==='analog'&&/corrente/i.test(t.var)&&t.unit==='A');
+  } else if(nk==='temperatura'){
+    pt=e.tags.find(t=>t.type==='analog'&&(t.unit==='°C'||/temperatura|sa[ií]da.*processo/i.test(t.var)));
+  } else if(nk==='pressao'){
+    pt=e.tags.find(t=>t.type==='analog'&&(/press[ãa]o|valor atual|sa[ií]da.*processo/i.test(t.var))&&t.unit!=='%'&&!/controle|mv|setpoint/i.test(t.var));
+  } else if(nk==='vazao'){
+    pt=e.tags.find(t=>t.type==='analog'&&(/vaz[ãa]o|sa[ií]da.*processo/i.test(t.var))&&t.unit!=='%');
+  } else if(nk==='rpm'){
+    pt=e.tags.find(t=>t.type==='analog'&&/rpm/i.test(t.var));
+  } else if(nk==='speed'){
+    pt=e.tags.find(t=>t.type==='analog'&&/feedback.*velocidade|velocidade.*drive/i.test(t.var));
+    if(!pt) pt=e.tags.find(t=>t.type==='analog'&&/velocidade/i.test(t.var)&&t.unit==='Hz');
+  }
+  // Fallback: primeiro analog (caso nenhum match específico)
+  if(!pt) pt=e.tags.find(t=>t.type==='analog');
+  if(!pt) return null;
+
+  const d=nv!==0?desvio(pt.value,nv):null;
+  const ide=nv!==0?pt.value/nv:null;
+  const cv=pt.value>0?(pt.std/pt.value*100):null;
   return {primaryTag:pt,nomKey:nk,nomVal:nv,desvio:d,ide,cv};
 }
 
@@ -734,8 +767,9 @@ function calcCustoDesvio(equipId){
     if(!tagI||typeof tagI.value!=='number') return null;
     const delta=Math.abs(nom.corrente-tagI.value);
     if(delta<0.1) return {kwPerdido:0,rsHora:0,rsDia:0,rsMes:0,tipo:'motor',obs:'Dentro do nominal'};
-    // Potência trifásica equivalente ao desvio de corrente
-    const kW=(Math.sqrt(3)*COST_PARAMS.tensao*delta*COST_PARAMS.fatorPotencia)/1000;
+    // Usa tensão/FP individuais do equipamento (fallback para global)
+    const {V,FP}=getEquipElecParams(e);
+    const kW=(Math.sqrt(3)*V*delta*FP)/1000;
     const rsH=kW*COST_PARAMS.tarifa;
     const direcao=tagI.value<nom.corrente?'perda de carga/produção':'sobre-consumo';
     return {
@@ -1042,6 +1076,62 @@ function render(){
     case 'params': el.innerHTML=renderParams(); break;
   }
   attachHandlers();
+}
+
+function buildDataCoverageCard(){
+  const typeMap={};
+  Object.values(EQUIPMENT).forEach(eq=>{
+    if(!typeMap[eq.type]) typeMap[eq.type]={count:0,vars:new Set(),gaps:[]};
+    typeMap[eq.type].count++;
+    eq.tags.forEach(t=>{
+      const v=t.var.toLowerCase();
+      if(v.includes('corrente')&&t.unit==='A') typeMap[eq.type].vars.add('Corrente');
+      else if(v.includes('rpm')) typeMap[eq.type].vars.add('RPM');
+      else if(v.includes('feedback velocidade')||v.includes('velocidade drive')) typeMap[eq.type].vars.add('Freq. (Hz)');
+      else if(v.includes('setpoint velocidade')) typeMap[eq.type].vars.add('Setpoint vel.');
+      else if(v.includes('temperatura')||(t.unit==='°C')) typeMap[eq.type].vars.add('Temperatura');
+      else if(v.includes('pressão')||(t.unit==='mmH₂O')||(t.unit==='PSI')||(t.unit==='bar')) typeMap[eq.type].vars.add('Pressão');
+      else if(v.includes('vibra')) typeMap[eq.type].vars.add('Vibração');
+      else if(v.includes('vazão')||(t.unit==='T/H')) typeMap[eq.type].vars.add('Vazão');
+      else if(t.type==='status') typeMap[eq.type].vars.add('Status');
+      else if(t.type==='bool'&&v.includes('falha')) typeMap[eq.type].vars.add('Falha');
+      else if(v.includes('saída controle')||v.includes('valor atual')) typeMap[eq.type].vars.add('PID');
+    });
+  });
+  // Lacunas conhecidas
+  const knownGaps={
+    'Ventilador':'Sem temp. direta nos mancais',
+    'Bomba':'Sem corrente elétrica (só RPM)',
+    'Correia':'Sem temperatura / vibração',
+    'Rosca':'Sem temperatura / vibração',
+    'Hidráulica':'Sem feedback velocidade real',
+    'Redler':'Sem feedback velocidade real',
+    'Vibração':'Sem conversão p/ mm/s (raw)',
+    'Dosador':'Sem feedback velocidade real',
+  };
+
+  const icons={'Ventilador':'🌀','Bomba':'💧','Correia':'⛓','Rosca':'🔩','Hidráulica':'⚙','Redler':'🔗','AirLift':'💨','Dosador':'📦','Temperatura':'🌡','Pressão':'📊','Vazão':'🔵','Vibração':'📳','Nordson':'🏭','Controle':'🎛'};
+
+  const types=Object.keys(typeMap).sort((a,b)=>typeMap[b].count-typeMap[a].count);
+  let chips='';
+  types.forEach(tp=>{
+    const info=typeMap[tp];
+    const varList=[...info.vars].sort();
+    const gap=knownGaps[tp]||'';
+    const tipLines=varList.map(v=>`✓ ${v}`).join('<br>');
+    const tipGap=gap?`<br><span style="color:#f59e0b">⚠ ${gap}</span>`:'';
+    chips+=`<div class="cov-chip">
+      <span>${icons[tp]||'●'}</span>
+      <span>${tp}</span>
+      <span class="cov-count">(${info.count})</span>
+      <div class="cov-tip">${tipLines}${tipGap}</div>
+    </div>`;
+  });
+
+  return `<div style="display:flex;align-items:center;gap:10px;margin-bottom:18px;flex-wrap:wrap">
+    <span style="font-size:10px;font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:0.8px">Captura:</span>
+    <div class="cov-row">${chips}</div>
+  </div>`;
 }
 
 function renderOverview(){
@@ -1489,12 +1579,81 @@ function renderMotores(){
   return html;
 }
 
+function getEquipVarBadges(e){
+  const cats=new Set();
+  e.tags.forEach(t=>{
+    const v=t.var.toLowerCase();
+    if(v.includes('corrente')&&t.unit==='A') cats.add('Corrente');
+    else if(v.includes('rpm')) cats.add('RPM');
+    else if(v.includes('feedback velocidade')||v.includes('velocidade drive')) cats.add('Frequência');
+    else if(v.includes('setpoint velocidade')||v.includes('velocidade bomba')) cats.add('Setpoint');
+    else if(v.includes('temperatura')||(t.unit==='°C')) cats.add('Temperatura');
+    else if(v.includes('pressão')||(t.unit==='mmH₂O')||(t.unit==='PSI')||(t.unit==='bar')) cats.add('Pressão');
+    else if(v.includes('vibra')) cats.add('Vibração');
+    else if(v.includes('vazão')||(t.unit==='T/H')) cats.add('Vazão');
+    else if(t.type==='status') cats.add('Status');
+    else if(t.type==='bool'&&v.includes('falha')) cats.add('Falha');
+    else if(v.includes('saída controle')||v.includes('valor atual')) cats.add('PID');
+  });
+  const colors={'Corrente':'var(--accent)','RPM':'var(--purple)','Frequência':'var(--green)','Setpoint':'var(--yellow)','Temperatura':'var(--orange)','Pressão':'var(--pink)','Vibração':'var(--red)','Vazão':'var(--cyan)','Status':'var(--dim)','Falha':'var(--red)','PID':'var(--purple)'};
+  return [...cats].map(c=>`<span style="display:inline-block;padding:1px 6px;border-radius:4px;font-size:9px;font-weight:600;background:${colors[c]||'var(--card2)'}22;color:${colors[c]||'var(--muted)'};border:1px solid ${colors[c]||'var(--border)'}44">${c}</span>`).join(' ');
+}
+
+function getEquipElecParams(e){
+  // Retorna tensão e FP individuais do equipamento, com fallback para global
+  const V=(e.elec&&typeof e.elec.tensao==='number')?e.elec.tensao:COST_PARAMS.tensao;
+  const FP=(e.elec&&typeof e.elec.fp==='number')?e.elec.fp:COST_PARAMS.fatorPotencia;
+  const isCustom=!!(e.elec&&(typeof e.elec.tensao==='number'||typeof e.elec.fp==='number'));
+  return {V,FP,isCustom};
+}
+
+function calcEquipPower(e){
+  // P = √3 × V × I × FP / 1000 (kW) — motor trifásico
+  const tagI=e.tags.find(t=>t.unit==='A'&&t.type==='analog'&&/corrente/i.test(t.var));
+  if(!tagI||typeof tagI.value!=='number') return null;
+  const {V,FP,isCustom}=getEquipElecParams(e);
+  const kW=Math.sqrt(3)*V*tagI.value*FP/1000;
+  // Potência nominal (se tiver corrente nominal)
+  let kWnom=null;
+  if(e.nominal&&typeof e.nominal.corrente==='number'){
+    kWnom=Math.sqrt(3)*V*e.nominal.corrente*FP/1000;
+  }
+  return {kW, kWnom, I:tagI.value, V, FP, isCustom};
+}
+
+function setEquipElecParam(equipId,field,value){
+  const e=EQUIPMENT[equipId];
+  if(!e) return;
+  if(!e.elec) e.elec={};
+  const v=parseFloat(value);
+  if(isNaN(v)||v<=0){
+    delete e.elec[field];
+    if(Object.keys(e.elec).length===0) delete e.elec;
+  } else {
+    e.elec[field]=v;
+  }
+  // re-renderiza o modal se estiver aberto
+  if(document.querySelector('.modal-overlay')) openEquipDetail(equipId);
+}
+
 function renderEquipCard(id){
   const e=EQUIPMENT[id];
   const a=getEquipAnalysis(id);
   const col=a?sColor(a.desvio):'var(--dim)';
   const label=a?sLabel(a.desvio):'N/A';
   const analogCount=e.tags.filter(t=>t.type==='analog').length;
+  const badges=getEquipVarBadges(e);
+  const pw=calcEquipPower(e);
+
+  let pwHtml='';
+  if(pw){
+    const pwCol=pw.kWnom?(pw.kW>pw.kWnom*1.05?'var(--red)':pw.kW<pw.kWnom*0.7?'var(--yellow)':'var(--green)'):'var(--cyan)';
+    pwHtml=`<div style="margin-top:6px;padding:4px 8px;background:${pwCol}11;border:1px solid ${pwCol}33;border-radius:6px;display:flex;align-items:center;justify-content:space-between">
+      <span style="font-size:9px;color:var(--muted);font-weight:600">POTÊNCIA</span>
+      <span class="mono" style="font-size:12px;font-weight:700;color:${pwCol}">${pw.kW.toFixed(1)} <span style="font-size:9px;font-weight:500">kW</span></span>
+      ${pw.kWnom?`<span style="font-size:9px;color:var(--dim)">nom ${pw.kWnom.toFixed(0)} kW</span>`:''}
+    </div>`;
+  }
 
   return `<div class="equip-card" data-equip="${id}" style="border-left-color:${col}">
     <div class="equip-header">
@@ -1511,6 +1670,7 @@ function renderEquipCard(id){
         ${a&&a.desvio!==null?`<div class="equip-desvio mono" style="color:${col}">${a.desvio>0?'+':''}${a.desvio.toFixed(1)}%</div>`:''}
       </div>
     </div>
+    <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:3px">${badges}</div>${pwHtml}
     <div class="equip-footer">
       <span class="equip-footer-left">${analogCount} sinais · ${e.tags.length} tags</span>
       <span class="equip-footer-right">Clique para detalhes →</span>
@@ -2039,7 +2199,7 @@ function computeSimulation(){
 }
 
 function renderSimulator(){
-  let html=`<div class="card"><div class="card-title">Simulador T1 / T2 <span class="sub">qual torre rodar para a produção alvo</span></div>
+  let html=`<div class="card"><div class="card-title">Distribuição T1 / T2 <span class="sub">consumo específico + funil torres → linhas de embalagem</span></div>
     <div id="simulatorView"></div>
   </div>`;
   return html;
@@ -2050,181 +2210,151 @@ function renderSimulatorView(){
   if(!ct) return;
   const s=SIMULATOR_STATE;
   const res=computeSimulation();
-
-  // ---- INPUTS ----
-  let html=`<div class="sim-inputs">
-    <div class="sim-input-group">
-      <label>Tonelagem por dia</label>
-      <div class="sim-input-row">
-        <input type="range" min="20" max="240" step="5" value="${s.tonsPerDay}" oninput="updateSimInput('tonsPerDay',this.value)">
-        <input type="number" min="0" step="1" value="${s.tonsPerDay}" oninput="updateSimInput('tonsPerDay',this.value)" class="sim-num">
-        <span class="sim-unit">ton/dia</span>
-      </div>
-    </div>
-    <div class="sim-input-group">
-      <label>Horas operacionais</label>
-      <div class="sim-input-row">
-        <input type="range" min="8" max="24" step="1" value="${s.hoursPerDay}" oninput="updateSimInput('hoursPerDay',this.value)">
-        <input type="number" min="1" max="24" value="${s.hoursPerDay}" oninput="updateSimInput('hoursPerDay',this.value)" class="sim-num">
-        <span class="sim-unit">h/dia</span>
-      </div>
-    </div>
-    <div class="sim-input-group">
-      <label>Umidade alimento</label>
-      <div class="sim-input-row">
-        <input type="range" min="20" max="55" step="1" value="${s.humidity}" oninput="updateSimInput('humidity',this.value)">
-        <input type="number" min="0" max="100" value="${s.humidity}" oninput="updateSimInput('humidity',this.value)" class="sim-num">
-        <span class="sim-unit">%</span>
-      </div>
-    </div>
-    <div class="sim-input-group">
-      <label>Temperatura ambiente</label>
-      <div class="sim-input-row">
-        <input type="range" min="10" max="40" step="1" value="${s.ambientTemp}" oninput="updateSimInput('ambientTemp',this.value)">
-        <input type="number" min="-10" max="50" value="${s.ambientTemp}" oninput="updateSimInput('ambientTemp',this.value)" class="sim-num">
-        <span class="sim-unit">°C</span>
-      </div>
-    </div>
-  </div>`;
-
-  // ---- DERIVED METRICS BAR ----
-  html+=`<div class="sim-derived">
-    <div><span class="sim-derived-label">Tonelagem requerida</span><span class="sim-derived-val mono">${res.tph.toFixed(2)} <span style="font-size:10px;color:var(--dim)">ton/h</span></span></div>
-    <div><span class="sim-derived-label">Produção alvo</span><span class="sim-derived-val mono">${s.tonsPerDay} <span style="font-size:10px;color:var(--dim)">ton/dia</span></span></div>
-    <div><span class="sim-derived-label">Janela operacional</span><span class="sim-derived-val mono">${s.hoursPerDay}h <span style="font-size:10px;color:var(--dim)">de ${24}</span></span></div>
-  </div>`;
-
-  // ---- TOWER CARDS ----
-  html+=`<div class="sim-cards">`;
-  ['t1','t2'].forEach(key=>{
-    const r=res[key];
-    const t=s[key];
-    const isRec=res.recomendacao===key;
-    const viavelClass=r.viavel?(isRec?'recommended':'ok'):'infeasible';
-    html+=`<div class="sim-tower-card ${viavelClass}">
-      <div class="sim-tower-header">
-        <div>
-          <div class="sim-tower-name">${t.name}</div>
-          <div class="sim-tower-range">${t.min}–${t.max} t/h · ótimo ${t.opt} t/h</div>
-        </div>
-        ${isRec?`<span class="sim-badge-rec">RECOMENDADO</span>`:''}
-      </div>`;
-    if(!r.viavel){
-      html+=`<div class="sim-infeasible-box">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:24px;height:24px"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
-        <div class="sim-infeasible-title">Inviável</div>
-        <div class="sim-infeasible-msg">${r.motivo}</div>
-        <div class="sim-infeasible-hint">Tonelagem requerida: <strong>${res.tph.toFixed(2)} t/h</strong></div>
-      </div>`;
-    } else {
-      html+=`<div class="sim-metrics">
-        <div class="sim-metric"><div class="sim-metric-label">Consumo específico</div><div class="sim-metric-val mono">${r.kwhPerTon.toFixed(0)} <span class="sim-metric-unit">kWh/ton</span></div></div>
-        <div class="sim-metric"><div class="sim-metric-label">Vapor específico</div><div class="sim-metric-val mono">${r.vaporPerTon.toFixed(2)} <span class="sim-metric-unit">t/ton</span></div></div>
-        <div class="sim-metric"><div class="sim-metric-label">Total kWh/dia</div><div class="sim-metric-val mono">${(r.kwhDay/1000).toFixed(1)} <span class="sim-metric-unit">MWh</span></div></div>
-        <div class="sim-metric"><div class="sim-metric-label">Total vapor/dia</div><div class="sim-metric-val mono">${r.vaporDay.toFixed(1)} <span class="sim-metric-unit">ton</span></div></div>
-        <div class="sim-metric sim-metric-cost"><div class="sim-metric-label">Custo estimado</div><div class="sim-metric-val mono">R$ ${(r.custoDia/1000).toFixed(1)}k <span class="sim-metric-unit">/dia</span></div></div>
-      </div>
-      <div class="sim-penalty-bar">
-        <div class="sim-penalty-label">Penalidade fora do ótimo: <strong style="color:${r.penaltyPct>10?'var(--red)':r.penaltyPct>5?'var(--orange)':'var(--green)'}">+${r.penaltyPct.toFixed(1)}%</strong></div>
-      </div>`;
-    }
-    html+=`</div>`;
-  });
-  html+=`</div>`;
-
-  // ---- RECOMMENDATION BANNER ----
-  if(res.recomendacao&&res.t1.viavel&&res.t2.viavel){
-    const rec=res[res.recomendacao];
-    const other=res[res.recomendacao==='t1'?'t2':'t1'];
-    const savings=other.custoDia-rec.custoDia;
-    const savingsPct=(savings/other.custoDia*100);
-    const kwhSaved=other.kwhDay-rec.kwhDay;
-    html+=`<div class="sim-banner sim-banner-ok">
-      <div class="sim-banner-icon">✓</div>
-      <div class="sim-banner-content">
-        <div class="sim-banner-title">Rodar <strong>${s[res.recomendacao].name}</strong> é a escolha mais eficiente</div>
-        <div class="sim-banner-sub">Economia estimada de <strong class="mono">R$ ${savings.toFixed(0)}/dia</strong> (${savingsPct.toFixed(1)}%) · <strong class="mono">${(kwhSaved/1000).toFixed(1)} MWh/dia</strong> a menos vs. ${s[res.recomendacao==='t1'?'t2':'t1'].name}</div>
-      </div>
-    </div>`;
-  } else if(res.recomendacao){
-    const rec=res[res.recomendacao];
-    const other=res[res.recomendacao==='t1'?'t2':'t1'];
-    html+=`<div class="sim-banner sim-banner-warn">
-      <div class="sim-banner-icon">⚠</div>
-      <div class="sim-banner-content">
-        <div class="sim-banner-title">Apenas <strong>${s[res.recomendacao].name}</strong> é viável nesta condição</div>
-        <div class="sim-banner-sub">${s[res.recomendacao==='t1'?'t2':'t1'].name} está inviável: ${other.motivo}</div>
-      </div>
-    </div>`;
-  } else {
-    html+=`<div class="sim-banner sim-banner-err">
-      <div class="sim-banner-icon">✕</div>
-      <div class="sim-banner-content">
-        <div class="sim-banner-title">Nenhuma torre suporta esta produção</div>
-        <div class="sim-banner-sub">Ajuste a tonelagem ou aumente as horas operacionais. Requisito atual: ${res.tph.toFixed(2)} t/h.</div>
-      </div>
-    </div>`;
-  }
-
-  // ---- FUNNEL DEMAND BRIDGE ----
-  // mostra a demanda atual do funil e permite puxar para os inputs do simulador
   const funnelF=computeFunnelLoads();
-  const funnelTotalDay=Math.round(funnelF.total*s.hoursPerDay);
-  const funnelMatch=Math.abs(funnelTotalDay-s.tonsPerDay)<1;
-  const simT1Funnel=funnelF.T1>0?simulateTower(s.t1,funnelF.T1,s.humidity,s.ambientTemp):null;
-  const simT2Funnel=funnelF.T2>0?simulateTower(s.t2,funnelF.T2,s.humidity,s.ambientTemp):null;
-  const kwhFT1=simT1Funnel&&simT1Funnel.viavel?simT1Funnel.kwhPerTon.toFixed(0):'—';
-  const kwhFT2=simT2Funnel&&simT2Funnel.viavel?simT2Funnel.kwhPerTon.toFixed(0):'—';
-  html+=`<div style="background:${funnelMatch?'#E8F4FD':'#FFF4E5'};border:1px solid ${funnelMatch?'#2E75B6':'#F5B766'};border-radius:10px;padding:12px 14px;margin-bottom:14px">
-    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-      <div style="flex:1;min-width:260px">
-        <div style="font-weight:700;font-size:13px;color:${funnelMatch?'#2E75B6':'#8A5200'};margin-bottom:4px">
-          ${funnelMatch?'◉ Demanda do simulador = demanda do funil':'⚠ Simulador e funil estão dessincronizados'}
-        </div>
-        <div style="font-size:12px;color:var(--text-muted)">
-          Funil (linhas ativas): <b>T1 ${funnelF.T1.toFixed(1)} t/h</b> (${kwhFT1} kWh/ton) · <b>T2 ${funnelF.T2.toFixed(1)} t/h</b> (${kwhFT2} kWh/ton) · total <b>${funnelF.total.toFixed(1)} t/h</b> → ${funnelTotalDay} t/dia em ${s.hoursPerDay}h
-        </div>
-        <div style="font-size:12px;color:var(--text-muted);margin-top:2px">
-          Simulador: ${s.tonsPerDay} t/dia ÷ ${s.hoursPerDay}h = <b>${res.tph.toFixed(1)} t/h</b> ${funnelMatch?'':`<span style="color:#E74C3C">(Δ ${(funnelTotalDay-s.tonsPerDay).toFixed(0)} t/dia)</span>`}
-        </div>
-      </div>
-      <button class="btn" onclick="syncSimFromFunnel()" style="background:${funnelMatch?'#E5E7EB':'#F5B041'};color:${funnelMatch?'#6B7280':'#fff'};border:none;padding:8px 14px;font-weight:700;cursor:pointer">
-        ${funnelMatch?'Já sincronizado':'⟲ Usar demanda do funil'}
-      </button>
-    </div>
-  </div>`;
+  const load={T1:funnelF.T1,T2:funnelF.T2};
 
-  // ---- CURVE CHART ----
-  html+=`<div class="sim-chart-section">
-    <div class="sim-chart-title">Curva de consumo específico por torre</div>
+  // Simula cada torre no ponto do funil
+  const simT1=load.T1>0?simulateTower(s.t1,load.T1,s.humidity,s.ambientTemp):null;
+  const simT2=load.T2>0?simulateTower(s.t2,load.T2,s.humidity,s.ambientTemp):null;
+
+  // Calcula kWh e custo/dia (simulateTower não calcula custoDia)
+  function calcTowerCost(sim,loadTph){
+    if(!sim||!sim.viavel) return {kwh:null,custoDia:null,custoHora:null};
+    const kwhDay=sim.kwhPerTon*loadTph*s.hoursPerDay;
+    const vaporDay=sim.vaporPerTon*loadTph*s.hoursPerDay;
+    const custoDia=kwhDay*0.55+vaporDay*85;
+    const custoHora=custoDia/Math.max(s.hoursPerDay,1);
+    return {kwh:sim.kwhPerTon,custoDia,custoHora};
+  }
+  const costT1=calcTowerCost(simT1,load.T1);
+  const costT2=calcTowerCost(simT2,load.T2);
+  const kwhT1=costT1.kwh, kwhT2=costT2.kwh;
+  const custoT1=costT1.custoDia, custoT2=costT2.custoDia;
+
+  const capT1=s.t1.max, capT2=s.t2.max;
+  const pctT1=capT1?(load.T1/capT1*100):0;
+  const pctT2=capT2?(load.T2/capT2*100):0;
+  const pctColor=p=>p>100?'var(--red)':p>85?'var(--orange)':'var(--green)';
+
+  let html='';
+
+  // ═══════════════════════════════════════════════════
+  //  CURVA DE CONSUMO (topo)
+  // ═══════════════════════════════════════════════════
+  html+=`<div class="sim-chart-section" style="margin-bottom:0">
+    <div class="sim-chart-title" style="margin-bottom:6px">Curva de consumo específico por torre</div>
     ${buildSimulatorChart(res)}
   </div>`;
 
-  // ---- PROJEÇÃO HORA/DIA/SEMANA/MÊS ----
-  html+=buildProjectionCard();
+  // ═══════════════════════════════════════════════════
+  //  RESUMO TOWERS (conecta curva ↔ funil)
+  // ═══════════════════════════════════════════════════
+  html+=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:14px 0">`;
+  [{key:'T1',name:'Torre 1',color:'#2E75B6',bg:'#EAF3FB',ld:load.T1,kwh:kwhT1,custo:custoT1,pct:pctT1,cap:capT1,lines:funnelF.linesT1,towerCfg:s.t1},
+   {key:'T2',name:'Torre 2',color:'#28A745',bg:'#E8F6EC',ld:load.T2,kwh:kwhT2,custo:custoT2,pct:pctT2,cap:capT2,lines:funnelF.linesT2,towerCfg:s.t2}
+  ].forEach(tw=>{
+    const recKey=tw.key==='T1'?'t1':'t2';
+    const isRec=res.recomendacao===recKey&&res.t1.viavel&&res.t2.viavel;
+    const overload=tw.ld>tw.towerCfg.max;
+    const underload=tw.ld>0&&tw.ld<tw.towerCfg.min;
+    const borderColor=overload?'#DC2626':tw.color;
+    const bgGrad=overload?'linear-gradient(180deg,#FEF2F2 0%,#fff 100%)':`linear-gradient(180deg,${tw.bg} 0%,#fff 100%)`;
+    html+=`<div style="border:2px solid ${borderColor};border-radius:12px;padding:14px 16px;background:${bgGrad};position:relative">
+      ${isRec&&!overload?`<span style="position:absolute;top:8px;right:10px;background:${tw.color};color:#fff;font-size:8px;font-weight:800;padding:2px 8px;border-radius:6px;text-transform:uppercase;letter-spacing:.5px">Mais eficiente</span>`:''}
+      ${overload?`<span style="position:absolute;top:8px;right:10px;background:#DC2626;color:#fff;font-size:8px;font-weight:800;padding:2px 8px;border-radius:6px;text-transform:uppercase;letter-spacing:.5px">⚠ Sobrecarga</span>`:''}
+      ${underload?`<span style="position:absolute;top:8px;right:10px;background:#F59E0B;color:#fff;font-size:8px;font-weight:800;padding:2px 8px;border-radius:6px;text-transform:uppercase;letter-spacing:.5px">⚠ Abaixo mín</span>`:''}
+      <div style="font-weight:800;font-size:16px;color:${tw.color};margin-bottom:8px">${tw.name}</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div>
+          <div style="font-size:9px;color:var(--dim);text-transform:uppercase;font-weight:600">Demanda</div>
+          <div class="mono" style="font-size:20px;font-weight:800;color:${overload?'#DC2626':pctColor(tw.pct)}">${tw.ld.toFixed(1)} <span style="font-size:10px;font-weight:500">t/h</span></div>
+          <div style="font-size:9px;color:${overload?'#DC2626':'var(--dim)'}">${tw.lines} linhas · ${overload?`<b>excede ${tw.towerCfg.max} t/h máx!</b>`:`${tw.pct.toFixed(0)}% de ${tw.cap} t/h`}</div>
+          <div style="margin-top:4px;height:5px;background:#E5E7EB;border-radius:3px;overflow:hidden">
+            <div style="width:${Math.min(100,tw.pct)}%;height:100%;background:${overload?'#DC2626':pctColor(tw.pct)};transition:width .3s"></div>
+          </div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:9px;color:var(--dim);text-transform:uppercase;font-weight:600">Consumo</div>
+          ${overload?`<div style="font-size:12px;font-weight:700;color:#DC2626;margin-top:4px">Fora da faixa</div>
+            <div style="font-size:9px;color:#DC2626;margin-top:2px">Reduza ${(tw.ld-tw.towerCfg.max).toFixed(1)} t/h ou redistribua para outra torre</div>`
+           :tw.kwh!==null?`<div class="mono" style="font-size:20px;font-weight:800;color:${tw.color}">${tw.kwh.toFixed(0)} <span style="font-size:10px;font-weight:500">kWh/ton</span></div>
+            ${tw.custo!==null?`<div style="font-size:10px;color:var(--muted);margin-top:2px">R$ ${tw.custo>=1000?(tw.custo/1000).toFixed(1)+'k':tw.custo.toFixed(0)}/dia</div>`:''}`
+           :`<div class="mono" style="font-size:20px;font-weight:800;color:var(--dim)">— <span style="font-size:10px;font-weight:500">kWh/ton</span></div>`}
+        </div>
+      </div>
+    </div>`;
+  });
+  html+=`</div>`;
 
-  // ---- DATA SOURCE BADGE ----
-  html+=`<div class="sim-source">
-    <span class="sim-source-label">Fonte dos parâmetros:</span>
-    <span class="sim-source-badge sim-source-${s.dataSource}">${s.dataSource==='real'?'◉ Dados reais (KQL)':'◯ Valores padrão (estimativa)'}</span>
-  </div>`;
+  // ═══════════════════════════════════════════════════
+  //  FUNIL: LINHAS DE EMBALAGEM
+  // ═══════════════════════════════════════════════════
+  const lines=LINES_STATE.lines;
+  const active=lines.filter(l=>l.active);
+  const poLines=lines.filter(l=>l.type==='po');
+  const cartuchoLines=lines.filter(l=>l.type==='cartucho');
+  const poAct=poLines.filter(l=>l.active).length;
+  const cartAct=cartuchoLines.filter(l=>l.active).length;
 
-  // ---- TOWER PARAMETERS (collapsible) ----
-  html+=`<div class="sim-params">
-    <div class="sim-params-header" onclick="toggleSimParams()">
-      <span>Parâmetros das torres ${s.showParams?'▼':'▶'}</span>
-      <span class="sim-params-hint">ajuste as curvas de cada torre manualmente</span>
+  const renderLineMini=l=>{
+    const isT1=l.towers.includes('T1'), isT2=l.towers.includes('T2');
+    const badgeColor=l.active?(isT1&&isT2?'#8E44AD':isT1?'#2E75B6':isT2?'#28A745':'#BDC3C7'):'#E5E7EB';
+    return `
+      <div class="line-card" data-line-id="${l.id}" style="border:2px solid ${l.active?badgeColor:'#E5E7EB'};border-radius:9px;padding:7px;background:${l.active?'#fff':'#F8F9FA'};opacity:${l.active?1:0.5};min-width:0">
+        <div style="display:flex;justify-content:space-between;align-items:start;gap:3px;margin-bottom:3px">
+          <div style="min-width:0">
+            <div style="font-weight:700;font-size:11px;color:${l.active?'#212B36':'#9CA3AF'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${l.name}</div>
+            <div style="font-size:8px;color:var(--dim);font-family:monospace">${l.id}</div>
+          </div>
+          <label style="font-size:8px;display:flex;align-items:center;cursor:pointer;background:${l.active?'#D4EDDA':'#FADBD8'};color:${l.active?'#155724':'#721C24'};padding:1px 5px;border-radius:6px;font-weight:700;white-space:nowrap">
+            <input type="checkbox" ${l.active?'checked':''} onchange="toggleLineActive('${l.id}')" style="margin:0 2px 0 0;transform:scale(.7)">
+            ${l.active?'ON':'OFF'}
+          </label>
+        </div>
+        <div style="display:flex;gap:2px;margin:3px 0">
+          <button onclick="toggleLineTower('${l.id}','T1')" style="flex:1;padding:2px;border-radius:4px;border:1px solid ${isT1?'#2E75B6':'#E5E7EB'};background:${isT1?'#2E75B6':'#fff'};color:${isT1?'#fff':'#6B7280'};font-size:9px;font-weight:700;cursor:pointer">T1</button>
+          <button onclick="toggleLineTower('${l.id}','T2')" style="flex:1;padding:2px;border-radius:4px;border:1px solid ${isT2?'#28A745':'#E5E7EB'};background:${isT2?'#28A745':'#fff'};color:${isT2?'#fff':'#6B7280'};font-size:9px;font-weight:700;cursor:pointer">T2</button>
+        </div>
+        <div style="display:flex;align-items:center;gap:2px;font-size:9px;color:var(--dim)">
+          <input type="number" step="0.1" value="${l.capacity}" onchange="setLineCapacity('${l.id}',this.value)" style="width:100%;padding:1px 3px;font-size:9px;border:1px solid #E5E7EB;border-radius:3px;text-align:right">
+          <span>t/h</span>
+        </div>
+      </div>`;
+  };
+
+  html+=`<div style="margin-top:4px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+      <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.8px">Linhas de Embalagem</div>
+      <div style="display:flex;gap:6px">
+        <button class="btn" style="font-size:9px;padding:3px 8px" onclick="setAllLinesActive(true)">Ativar todas</button>
+        <button class="btn" style="font-size:9px;padding:3px 8px" onclick="setAllLinesActive(false)">Desativar</button>
+        <button class="btn" style="font-size:9px;padding:3px 8px" onclick="resetLinesDemo()">Reset</button>
+      </div>
     </div>
-    ${s.showParams?buildSimParamsPanel():''}
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+          <span style="font-weight:700;font-size:11px;color:#2E75B6">Pó (${poAct}/${poLines.length} ativas)</span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(9,minmax(0,1fr));gap:5px">
+          ${poLines.map(renderLineMini).join('')}
+        </div>
+      </div>
+      <div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+          <span style="font-weight:700;font-size:11px;color:#9B59B6">Cartucho (${cartAct}/${cartuchoLines.length} ativas)</span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(9,minmax(0,1fr));gap:5px">
+          ${cartuchoLines.map(renderLineMini).join('')}
+        </div>
+      </div>
+    </div>
+    <div style="margin-top:8px;text-align:center;font-size:9px;color:var(--dim)">
+      ⚠ 18 linhas placeholder — substitua pelos dados reais quando disponíveis
+    </div>
   </div>`;
-
-  // ---- FUNIL: Torres → Linhas de embalagem (18 linhas) ----
-  html+=buildLinhasFunnel();
 
   ct.innerHTML=html;
-
-  // desenha as curvas do funil após o DOM estar pronto
-  setTimeout(drawLinhasLinks,30);
 }
 
 function buildSimParamsPanel(){
@@ -2375,9 +2505,11 @@ function buildSimulatorChart(res){
   const s=SIMULATOR_STATE;
   const w=860,h=300,padL=60,padR=20,padT=20,padB=40;
   const cw=w-padL-padR,ch=h-padT-padB;
-  // eixo X: abrange união das faixas das torres
+  // eixo X: abrange união das faixas das torres + cargas do funil
+  const funnelNow=computeFunnelLoads();
+  const maxFunnel=Math.max(funnelNow.T1||0,funnelNow.T2||0);
   const xMin=Math.min(s.t1.min,s.t2.min)*0.9;
-  const xMax=Math.max(s.t1.max,s.t2.max)*1.05;
+  const xMax=Math.max(s.t1.max,s.t2.max,maxFunnel)*1.05;
   // coleta pontos para calcular yMax
   const samples=80;
   const colors={t1:'#3b82f6',t2:'#f97316'};
@@ -2439,14 +2571,6 @@ function buildSimulatorChart(res){
     svg+=`<text x="${sx(last.x)+8}" y="${sy(last.y)+3}" fill="${col}" font-size="11" font-weight="700">${t.name}</text>`;
   });
 
-  // vertical line at current tph
-  const curX=res.tph;
-  if(curX>=xMin&&curX<=xMax){
-    svg+=`<line x1="${sx(curX)}" y1="${padT}" x2="${sx(curX)}" y2="${padT+ch}" stroke="#1e293b" stroke-width="1.5" stroke-dasharray="5,3"/>`;
-    svg+=`<rect x="${sx(curX)-34}" y="${padT-2}" width="68" height="16" rx="4" fill="#1e293b"/>`;
-    svg+=`<text x="${sx(curX)}" y="${padT+10}" fill="#fff" font-size="10" text-anchor="middle" font-family="monospace" font-weight="600">${curX.toFixed(2)} t/h</text>`;
-  }
-
   // ===== Marcadores do FUNIL: carga real de cada torre vinda das linhas =====
   const funnelLoads=computeFunnelLoads();
   const funnelPoints=[
@@ -2455,19 +2579,30 @@ function buildSimulatorChart(res){
   ];
   funnelPoints.forEach((fp,idx)=>{
     if(fp.load<=0) return;
-    if(fp.load<xMin||fp.load>xMax) return;
+    const fx=sx(Math.min(fp.load,xMax*0.98));
     const r=simulateTower(fp.tower,fp.load,s.humidity,s.ambientTemp);
-    if(!r.viavel) return;
-    const fx=sx(fp.load), fy=sy(r.kwhPerTon);
-    // linha vertical tracejada na cor da torre
-    svg+=`<line x1="${fx}" y1="${padT}" x2="${fx}" y2="${padT+ch}" stroke="${fp.color}" stroke-width="1.2" stroke-dasharray="3,3" stroke-opacity="0.7"/>`;
-    // losango no ponto de operação
-    svg+=`<polygon points="${fx},${fy-7} ${fx+7},${fy} ${fx},${fy+7} ${fx-7},${fy}" fill="#fff" stroke="${fp.color}" stroke-width="2.5"/>`;
+    const overload=!r.viavel;
+    const labelColor=overload?'#DC2626':fp.color;
+
+    if(!overload){
+      // Caso normal: marcador no ponto da curva
+      const fy=sy(r.kwhPerTon);
+      svg+=`<line x1="${fx}" y1="${padT}" x2="${fx}" y2="${padT+ch}" stroke="${fp.color}" stroke-width="1.2" stroke-dasharray="3,3" stroke-opacity="0.7"/>`;
+      svg+=`<polygon points="${fx},${fy-7} ${fx+7},${fy} ${fx},${fy+7} ${fx-7},${fy}" fill="#fff" stroke="${fp.color}" stroke-width="2.5"/>`;
+    } else {
+      // Sobrecarga: linha vermelha tracejada + zona de alerta
+      const maxX=sx(fp.tower.max);
+      svg+=`<rect x="${maxX}" y="${padT}" width="${fx-maxX}" height="${ch}" fill="#DC2626" fill-opacity="0.08"/>`;
+      svg+=`<line x1="${fx}" y1="${padT}" x2="${fx}" y2="${padT+ch}" stroke="#DC2626" stroke-width="1.5" stroke-dasharray="5,3"/>`;
+      svg+=`<line x1="${maxX}" y1="${padT}" x2="${maxX}" y2="${padT+ch}" stroke="#DC2626" stroke-width="1" stroke-dasharray="2,2" stroke-opacity="0.5"/>`;
+    }
+
     // etiqueta na base com badge
     const labelY=padT+ch-6-(idx*16);
-    const labelW=82;
-    svg+=`<rect x="${fx-labelW/2}" y="${labelY-11}" width="${labelW}" height="14" rx="3" fill="${fp.color}" fill-opacity="0.92"/>`;
-    svg+=`<text x="${fx}" y="${labelY-1}" fill="#fff" font-size="9" text-anchor="middle" font-family="monospace" font-weight="700">${fp.label} ${fp.load.toFixed(1)}t/h</text>`;
+    const labelText=overload?`⚠ ${fp.label} ${fp.load.toFixed(1)}t/h`:`${fp.label} ${fp.load.toFixed(1)}t/h`;
+    const labelW=overload?100:82;
+    svg+=`<rect x="${fx-labelW/2}" y="${labelY-11}" width="${labelW}" height="14" rx="3" fill="${labelColor}" fill-opacity="0.92"/>`;
+    svg+=`<text x="${fx}" y="${labelY-1}" fill="#fff" font-size="9" text-anchor="middle" font-family="monospace" font-weight="700">${labelText}</text>`;
   });
 
   svg+=`</svg>`;
@@ -2667,7 +2802,39 @@ function buildRadarChart(items){
     legend+=`<div class="radar-legend-item"><span class="radar-legend-dot" style="background:${col}"></span><span class="mono" style="font-weight:600;color:var(--text)">${esc(it.id)}</span><span style="color:var(--dim)">${esc(it.name)}</span></div>`;
   });
   legend+=`</div>`;
-  return `<div class="radar-wrap">${svg}${legend}</div>`;
+
+  // Legenda explicativa dos eixos do radar
+  const axisHelp=`<div style="margin-top:16px;padding:12px 14px;background:var(--bg);border:1px solid var(--border);border-radius:10px">
+    <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px">Legenda dos Eixos</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 16px">
+      <div style="display:flex;gap:6px;align-items:start">
+        <span style="font-size:10px;font-weight:700;color:#475569;white-space:nowrap;min-width:74px">Desvio %</span>
+        <span style="font-size:9px;color:var(--dim);line-height:1.3">Diferença percentual entre o valor atual e o nominal. Quanto maior, mais longe do ponto ideal de operação.</span>
+      </div>
+      <div style="display:flex;gap:6px;align-items:start">
+        <span style="font-size:10px;font-weight:700;color:#475569;white-space:nowrap;min-width:74px">IDE</span>
+        <span style="font-size:9px;color:var(--dim);line-height:1.3">Índice de Desempenho Energético — razão valor atual / nominal. 100% = operando exatamente no nominal.</span>
+      </div>
+      <div style="display:flex;gap:6px;align-items:start">
+        <span style="font-size:10px;font-weight:700;color:#475569;white-space:nowrap;min-width:74px">Variabilidade</span>
+        <span style="font-size:9px;color:var(--dim);line-height:1.3">Coeficiente de variação (CV%) do sinal. Alta variabilidade indica instabilidade operacional ou problema de controle.</span>
+      </div>
+      <div style="display:flex;gap:6px;align-items:start">
+        <span style="font-size:10px;font-weight:700;color:#475569;white-space:nowrap;min-width:74px">Corrente (A)</span>
+        <span style="font-size:9px;color:var(--dim);line-height:1.3">Corrente elétrica medida no motor. Proporcional ao torque e carga mecânica do equipamento.</span>
+      </div>
+      <div style="display:flex;gap:6px;align-items:start">
+        <span style="font-size:10px;font-weight:700;color:#475569;white-space:nowrap;min-width:74px">Temperatura (°C)</span>
+        <span style="font-size:9px;color:var(--dim);line-height:1.3">Temperatura de operação ou do processo. Influencia diretamente a degradação (fator Arrhenius).</span>
+      </div>
+      <div style="display:flex;gap:6px;align-items:start">
+        <span style="font-size:10px;font-weight:700;color:#475569;white-space:nowrap;min-width:74px">Vibração (mA)</span>
+        <span style="font-size:9px;color:var(--dim);line-height:1.3">Sinal dos cartões de vibração (4-20mA). Níveis elevados indicam desbalanceamento, folga ou desgaste mecânico.</span>
+      </div>
+    </div>
+  </div>`;
+
+  return `<div class="radar-wrap">${svg}${legend}</div>${axisHelp}`;
 }
 
 // Multi-line chart: série sintética de consumo por ativo (24 pontos)
@@ -2742,21 +2909,63 @@ function buildDeviationHeatmap(items,days){
     if(v<20) return '#f97316';
     return '#ef4444';
   };
-  let html=`<div class="heatmap-wrap"><table class="heatmap-table"><thead><tr><th style="text-align:left;padding:0 10px 6px 0;font-size:10px;color:var(--dim);font-weight:600">ATIVO</th>`;
-  for(let d=1;d<=days;d++){
-    html+=`<th style="font-size:9px;color:var(--dim);font-weight:500;padding:0 0 6px 0;text-align:center;width:22px">${d}</th>`;
+  // Gera array de datas dos últimos N dias
+  const today=new Date();
+  const dates=[];
+  for(let d=days-1;d>=0;d--){
+    const dt=new Date(today);
+    dt.setDate(dt.getDate()-d);
+    dates.push(dt);
   }
-  html+=`</tr></thead><tbody>`;
+  const meses=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  const diasSem=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+
+  let html=`<div class="heatmap-wrap"><table class="heatmap-table"><thead>`;
+  // Linha 1: mês (agrupado por colspan)
+  html+=`<tr><th rowspan="3" style="text-align:left;padding:0 10px 6px 0;font-size:10px;color:var(--dim);font-weight:600;vertical-align:bottom">ATIVO</th>`;
+  let monthSpans=[];
+  let curMonth=dates[0].getMonth(), spanStart=0;
+  for(let i=1;i<=dates.length;i++){
+    if(i===dates.length||dates[i].getMonth()!==curMonth){
+      monthSpans.push({month:curMonth,year:dates[spanStart].getFullYear(),span:i-spanStart});
+      if(i<dates.length){curMonth=dates[i].getMonth();spanStart=i;}
+    }
+  }
+  monthSpans.forEach(ms=>{
+    html+=`<th colspan="${ms.span}" style="font-size:9px;color:var(--accent);font-weight:700;padding:0 0 2px 0;text-align:center;border-bottom:1px solid var(--border)">${meses[ms.month]} ${ms.year}</th>`;
+  });
+  html+=`</tr>`;
+  // Linha 2: dia do mês
+  html+=`<tr>`;
+  dates.forEach(dt=>{
+    const isWeekend=dt.getDay()===0||dt.getDay()===6;
+    const isToday=dt.toDateString()===today.toDateString();
+    html+=`<th style="font-size:8px;color:${isToday?'var(--accent)':isWeekend?'var(--orange)':'var(--dim)'};font-weight:${isToday?'800':'500'};padding:1px 0;text-align:center;width:22px">${dt.getDate()}</th>`;
+  });
+  html+=`</tr>`;
+  // Linha 3: dia da semana (abreviado 1 letra)
+  html+=`<tr>`;
+  dates.forEach(dt=>{
+    const dw=diasSem[dt.getDay()].charAt(0);
+    const isWeekend=dt.getDay()===0||dt.getDay()===6;
+    const isToday=dt.toDateString()===today.toDateString();
+    html+=`<th style="font-size:7px;color:${isToday?'var(--accent)':isWeekend?'var(--orange)':'var(--dim)'};font-weight:400;padding:0 0 4px 0;text-align:center">${dw}</th>`;
+  });
+  html+=`</tr>`;
+  html+=`</thead><tbody>`;
   items.forEach(it=>{
     const seed=hash(it.id);
     const base=it.desvio||0;
     html+=`<tr><td class="mono" style="padding:2px 10px 2px 0;font-size:11px;font-weight:600;color:var(--text);white-space:nowrap">${esc(it.id)}</td>`;
     for(let d=0;d<days;d++){
+      const dt=dates[d];
+      const dateStr=`${dt.getDate().toString().padStart(2,'0')}/${(dt.getMonth()+1).toString().padStart(2,'0')}/${dt.getFullYear()}`;
+      const dwName=diasSem[dt.getDay()];
       const noise=(rand(seed,d)-0.5)*8;
       const trend=Math.sin(d/5+seed%10)*3;
       const v=base+noise+trend;
       const col=colorFor(v);
-      html+=`<td style="padding:0"><div class="heatmap-cell" style="background:${col}" title="${esc(it.id)} · dia ${d+1}: ${v>0?'+':''}${v.toFixed(1)}%"></div></td>`;
+      html+=`<td style="padding:0"><div class="heatmap-cell" style="background:${col}" title="${esc(it.id)} · ${dwName} ${dateStr}: ${v>0?'+':''}${v.toFixed(1)}%"></div></td>`;
     }
     html+=`</tr>`;
   });
@@ -2796,6 +3005,175 @@ const ARRHENIUS_PARAMS = {
 };
 
 const T_AMBIENTE = 35; // °C médio na planta
+
+// ═══════════════════════════════════════════════════════════════════
+// CURVA DA BANHEIRA — Weibull composta (mortalidade infantil + aleatório + desgaste)
+// h(t) = h_infant(t) + λ_random + h_wearout(t)
+// h_i(t) = (β/η)·(t/η)^(β-1) para cada fase
+// ═══════════════════════════════════════════════════════════════════
+const WEIBULL_PARAMS = {
+  Ventilador:   {beta_inf:0.45, eta_inf:0.8, lam_rand:0.04, beta_wear:3.5, eta_wear_base:12},
+  Bomba:        {beta_inf:0.50, eta_inf:0.6, lam_rand:0.05, beta_wear:2.8, eta_wear_base:10},
+  Correia:      {beta_inf:0.55, eta_inf:0.3, lam_rand:0.06, beta_wear:2.5, eta_wear_base:6},
+  Rosca:        {beta_inf:0.50, eta_inf:0.5, lam_rand:0.05, beta_wear:2.8, eta_wear_base:8},
+  'Hidráulica': {beta_inf:0.40, eta_inf:0.7, lam_rand:0.04, beta_wear:3.2, eta_wear_base:10},
+  Redler:       {beta_inf:0.50, eta_inf:0.4, lam_rand:0.06, beta_wear:2.5, eta_wear_base:7},
+  AirLift:      {beta_inf:0.45, eta_inf:0.8, lam_rand:0.04, beta_wear:3.5, eta_wear_base:12},
+  Dosador:      {beta_inf:0.50, eta_inf:0.5, lam_rand:0.05, beta_wear:2.8, eta_wear_base:8},
+};
+
+function computeBathtubCurve(equipId){
+  const e=EQUIPMENT[equipId];
+  if(!e) return null;
+  const wp=WEIBULL_PARAMS[e.type];
+  const ap=ARRHENIUS_PARAMS[e.type];
+  if(!wp||!ap) return null;
+
+  // Carga individual do equipamento (I/I_nom ou fallback)
+  const pw=calcEquipPower(e);
+  const carga=pw&&pw.kWnom?(pw.kW/pw.kWnom):0.8;
+
+  // CV (estabilidade do sinal) — equipamento com mais variação envelhece mais rápido
+  const analysis=getEquipAnalysis(equipId);
+  const cv=analysis&&analysis.cv?Math.min(analysis.cv,50):10;
+  const cvFactor=1+cv/100; // CV=30% → 1.30×
+
+  // AF individual usando temperatura de operação real do equipamento
+  const T_op=estimateOpTemp(e);
+  const T_nom_C=T_AMBIENTE+(ap.deltaT||80);
+  const kB=8.617e-5;
+  const T_nom_K=T_nom_C+273.15, T_op_K=T_op?(T_op+273.15):T_nom_K;
+  const AF=T_op?Math.exp((ap.Ea/kB)*(1/T_nom_K-1/T_op_K)):1.0;
+
+  // Fator de severidade individual: combina carga + CV + AF
+  const severidade=Math.max(0.4, AF*Math.pow(carga,1.5)*cvFactor);
+
+  // η_wearout ajustado pela severidade (maior = vida mais curta)
+  const eta_wear=wp.eta_wear_base/severidade;
+  const vida_ajustada=ap.vida_anos/severidade;
+
+  // λ_random ajustado pela carga (mais carga = mais falhas aleatórias)
+  const lam_rand_adj=wp.lam_rand*(0.5+carga);
+
+  // η_infant ajustado (equipamentos maiores = período infantil mais curto)
+  const eta_inf_adj=wp.eta_inf*(1.2-carga*0.4);
+
+  // Gera pontos
+  const tMax=Math.max(vida_ajustada*1.3, 4);
+  const nPts=120;
+  const dt=tMax/nPts;
+  const pts=[];
+
+  for(let i=0;i<=nPts;i++){
+    const t=i*dt;
+    if(t<=0.001){pts.push({t,h_inf:0,h_rand:lam_rand_adj,h_wear:0,h_total:lam_rand_adj});continue;}
+    const h_inf=(wp.beta_inf/eta_inf_adj)*Math.pow(t/eta_inf_adj, wp.beta_inf-1);
+    const h_rand=lam_rand_adj;
+    const h_wear=(wp.beta_wear/eta_wear)*Math.pow(t/eta_wear, wp.beta_wear-1);
+    const h_total=h_inf+h_rand+h_wear;
+    pts.push({t,h_inf,h_rand,h_wear,h_total});
+  }
+
+  // Posição estimada na curva: sem idade real, usa heurística (carga × fração da vida)
+  const idadeEstimada=vida_ajustada*(0.25+carga*0.35);
+
+  return {pts, tMax, eta_wear, vida_ajustada, AF, severidade, idadeEstimada, carga, cv, tipo:e.type, nome:e.name};
+}
+
+function buildBathtubSVG(data){
+  if(!data||!data.pts||data.pts.length<2) return '';
+  const W=560, H=200;
+  const pad={t:14,r:16,b:28,l:38};
+  const cw=W-pad.l-pad.r, ch=H-pad.t-pad.b;
+
+  // Limita pico da mortalidade infantil para não esmagar o resto
+  const sortedH=[...data.pts].sort((a,b)=>b.h_total-a.h_total);
+  const p95=sortedH[Math.floor(sortedH.length*0.05)]?.h_total||sortedH[0].h_total;
+  const maxH=Math.min(sortedH[0].h_total, p95*1.8)*1.1;
+
+  const sx=t=>pad.l+(t/data.tMax)*cw;
+  const sy=h=>pad.t+ch-Math.min(h/maxH,1)*ch;
+
+  // Paths
+  const mkPath=(arr,fn)=>arr.map((p,i)=>`${i===0?'M':'L'}${sx(p.t).toFixed(1)},${sy(fn(p)).toFixed(1)}`).join(' ');
+  const pathTotal=mkPath(data.pts,p=>p.h_total);
+  const pathWear=mkPath(data.pts,p=>p.h_wear);
+
+  // Área com gradiente
+  const areaTotal=pathTotal+` L${sx(data.tMax).toFixed(1)},${sy(0).toFixed(1)} L${pad.l},${sy(0).toFixed(1)} Z`;
+
+  // Fases de fundo (3 retângulos coloridos sutis)
+  const tInfEnd=Math.min(data.tMax*0.12, 1.5);
+  const tWearStart=data.vida_ajustada*0.7;
+  const xInfEnd=sx(tInfEnd), xWearStart=sx(tWearStart);
+
+  // Marcadores
+  const xVida=sx(data.vida_ajustada);
+  const xIdade=sx(data.idadeEstimada);
+  const ptAtIdade=data.pts.find(p=>p.t>=data.idadeEstimada)||data.pts[data.pts.length-1];
+  const yIdade=sy(ptAtIdade.h_total);
+
+  // Eixo X: ticks inteligentes
+  const step=data.tMax<=8?1:data.tMax<=20?2:5;
+  let xTicks='';
+  for(let tv=0;tv<=data.tMax;tv+=step){
+    const x=sx(tv);
+    xTicks+=`<line x1="${x}" y1="${sy(0)}" x2="${x}" y2="${sy(0)+3}" stroke="var(--dim)" stroke-width="0.5"/>`;
+    xTicks+=`<text x="${x}" y="${sy(0)+13}" text-anchor="middle" fill="var(--dim)" font-size="8" font-family="monospace">${tv}</text>`;
+  }
+
+  // Gridlines horizontais
+  let yGrid='';
+  for(let i=1;i<=3;i++){
+    const yy=pad.t+ch*(i/4);
+    yGrid+=`<line x1="${pad.l}" y1="${yy}" x2="${pad.l+cw}" y2="${yy}" stroke="var(--border)" stroke-width="0.3" stroke-dasharray="3,4"/>`;
+  }
+
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:${W}px;display:block" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="bg_${data.tipo}" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="var(--accent)" stop-opacity="0.12"/>
+        <stop offset="100%" stop-color="var(--accent)" stop-opacity="0.01"/>
+      </linearGradient>
+    </defs>
+    <!-- Fases de fundo -->
+    <rect x="${pad.l}" y="${pad.t}" width="${xInfEnd-pad.l}" height="${ch}" fill="var(--orange)" opacity="0.04" rx="2"/>
+    <rect x="${xInfEnd}" y="${pad.t}" width="${xWearStart-xInfEnd}" height="${ch}" fill="var(--green)" opacity="0.04"/>
+    <rect x="${xWearStart}" y="${pad.t}" width="${pad.l+cw-xWearStart}" height="${ch}" fill="var(--red)" opacity="0.04" rx="2"/>
+    <!-- Grid -->
+    ${yGrid}
+    <!-- Área -->
+    <path d="${areaTotal}" fill="url(#bg_${data.tipo})"/>
+    <!-- Curva desgaste -->
+    <path d="${pathWear}" fill="none" stroke="var(--red)" stroke-width="1.2" stroke-dasharray="5,3" opacity="0.5"/>
+    <!-- Curva total -->
+    <path d="${pathTotal}" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linejoin="round"/>
+    <!-- Vida útil -->
+    <line x1="${xVida}" y1="${pad.t}" x2="${xVida}" y2="${sy(0)}" stroke="var(--red)" stroke-width="1" stroke-dasharray="4,3" opacity="0.5"/>
+    <rect x="${xVida-22}" y="${pad.t}" width="44" height="14" rx="3" fill="var(--red)" opacity="0.1"/>
+    <text x="${xVida}" y="${pad.t+10}" text-anchor="middle" fill="var(--red)" font-size="8" font-weight="700">${data.vida_ajustada.toFixed(1)}a</text>
+    <!-- Ponto de operação -->
+    <line x1="${xIdade}" y1="${yIdade}" x2="${xIdade}" y2="${sy(0)}" stroke="var(--purple)" stroke-width="1.5" stroke-dasharray="3,2" opacity="0.6"/>
+    <circle cx="${xIdade}" cy="${yIdade}" r="5" fill="var(--purple)" stroke="#fff" stroke-width="2"/>
+    <rect x="${xIdade-12}" y="${sy(0)+2}" width="24" height="13" rx="3" fill="var(--purple)" opacity="0.15"/>
+    <text x="${xIdade}" y="${sy(0)+11}" text-anchor="middle" fill="var(--purple)" font-size="7" font-weight="700">${data.idadeEstimada.toFixed(1)}a</text>
+    <!-- Fases labels no topo -->
+    <text x="${pad.l+6}" y="${pad.t+ch-4}" fill="var(--orange)" font-size="7" font-weight="600" opacity="0.7">Infantil</text>
+    <text x="${(xInfEnd+xWearStart)/2}" y="${pad.t+ch-4}" text-anchor="middle" fill="var(--green)" font-size="7" font-weight="600" opacity="0.7">Vida útil</text>
+    <text x="${pad.l+cw-6}" y="${pad.t+ch-4}" text-anchor="end" fill="var(--red)" font-size="7" font-weight="600" opacity="0.7">Desgaste</text>
+    <!-- Eixos -->
+    <line x1="${pad.l}" y1="${sy(0)}" x2="${pad.l+cw}" y2="${sy(0)}" stroke="var(--border)" stroke-width="1"/>
+    <line x1="${pad.l}" y1="${pad.t}" x2="${pad.l}" y2="${sy(0)}" stroke="var(--border)" stroke-width="0.5"/>
+    <text x="${pad.l-3}" y="${H/2}" text-anchor="middle" fill="var(--dim)" font-size="7" transform="rotate(-90,${pad.l-3},${H/2})">λ(t)</text>
+    <text x="${W/2}" y="${H-2}" text-anchor="middle" fill="var(--dim)" font-size="8">anos</text>
+    ${xTicks}
+    <!-- Legenda compacta -->
+    <line x1="${pad.l+cw-90}" y1="${pad.t+8}" x2="${pad.l+cw-78}" y2="${pad.t+8}" stroke="var(--accent)" stroke-width="2.5"/>
+    <text x="${pad.l+cw-74}" y="${pad.t+11}" fill="var(--muted)" font-size="7">λ total</text>
+    <line x1="${pad.l+cw-45}" y1="${pad.t+8}" x2="${pad.l+cw-33}" y2="${pad.t+8}" stroke="var(--red)" stroke-width="1.2" stroke-dasharray="5,3"/>
+    <text x="${pad.l+cw-29}" y="${pad.t+11}" fill="var(--muted)" font-size="7">desgaste</text>
+  </svg>`;
+}
 
 function estimateOpTemp(equip) {
   const params = ARRHENIUS_PARAMS[equip.type];
@@ -4377,16 +4755,77 @@ function openModal(id){
 
   html+=`<div class="modal-body">`;
 
-  // Custo financeiro do desvio (se aplicável)
+  // Potência + Impacto Financeiro (bloco unificado)
+  const pw=calcEquipPower(e);
   const custoEq=calcCustoDesvio(id);
-  if(custoEq && custoEq.rsHora>0){
-    html+=`<div class="analysis-box" style="border-left:3px solid var(--red);background:rgba(239,68,68,0.05)">
-      <div style="font-size:11px;font-weight:600;color:var(--red);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">💰 Impacto Financeiro Estimado</div>
-      <div class="analysis-grid">
-        <div class="analysis-item"><div class="analysis-label">R$ / hora</div><div class="analysis-value mono" style="color:var(--red)">${fmtRs(custoEq.rsHora)}</div><div class="analysis-sub">${esc(custoEq.obs||'')}</div></div>
-        <div class="analysis-item"><div class="analysis-label">R$ / dia</div><div class="analysis-value mono" style="color:var(--orange)">${fmtRs(custoEq.rsDia)}</div><div class="analysis-sub">${COST_PARAMS.horasDia}h operação</div></div>
-        <div class="analysis-item"><div class="analysis-label">R$ / mês</div><div class="analysis-value mono" style="color:var(--yellow)">${fmtRs(custoEq.rsMes)}</div><div class="analysis-sub">30 dias</div></div>
-        ${custoEq.kwPerdido>0?`<div class="analysis-item"><div class="analysis-label">Equivalente</div><div class="analysis-value mono" style="color:var(--cyan)">${custoEq.kwPerdido.toFixed(1)} kW</div><div class="analysis-sub">V=${COST_PARAMS.tensao}V · FP=${COST_PARAMS.fatorPotencia}</div></div>`:''}
+  if(pw||custoEq){
+    const elecP=getEquipElecParams(e);
+    html+=`<div class="analysis-box" style="border-left:3px solid var(--accent);background:rgba(59,130,246,0.04)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <div style="font-size:11px;font-weight:600;color:var(--accent);text-transform:uppercase;letter-spacing:1px">⚡ Potência & Custo Elétrico</div>
+        ${elecP.isCustom?'<span style="font-size:8px;background:var(--accent);color:#fff;padding:2px 6px;border-radius:4px;font-weight:700">PARAMS INDIVIDUAIS</span>':''}
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px;padding:8px 10px;background:var(--bg);border-radius:8px;border:1px solid var(--border)">
+        <div>
+          <label style="font-size:8px;color:var(--dim);text-transform:uppercase;font-weight:600;display:block;margin-bottom:2px">Tensão (V)</label>
+          <input type="number" value="${elecP.V}" min="0" step="1" placeholder="${COST_PARAMS.tensao}"
+            onchange="setEquipElecParam('${id}','tensao',this.value)"
+            style="width:100%;padding:4px 6px;font-size:12px;border:1px solid var(--border);border-radius:4px;background:var(--bg2);color:var(--text);font-family:'SF Mono',monospace">
+          ${elecP.isCustom&&e.elec?.tensao?'':'<div style="font-size:7px;color:var(--dim);margin-top:1px">Global: '+COST_PARAMS.tensao+'V</div>'}
+        </div>
+        <div>
+          <label style="font-size:8px;color:var(--dim);text-transform:uppercase;font-weight:600;display:block;margin-bottom:2px">Fator Potência</label>
+          <input type="number" value="${elecP.FP}" min="0" max="1" step="0.01" placeholder="${COST_PARAMS.fatorPotencia}"
+            onchange="setEquipElecParam('${id}','fp',this.value)"
+            style="width:100%;padding:4px 6px;font-size:12px;border:1px solid var(--border);border-radius:4px;background:var(--bg2);color:var(--text);font-family:'SF Mono',monospace">
+          ${elecP.isCustom&&e.elec?.fp?'':'<div style="font-size:7px;color:var(--dim);margin-top:1px">Global: '+COST_PARAMS.fatorPotencia+'</div>'}
+        </div>
+        <div>
+          <label style="font-size:8px;color:var(--dim);text-transform:uppercase;font-weight:600;display:block;margin-bottom:2px">Tarifa (R$/kWh)</label>
+          <div style="padding:5px 6px;font-size:12px;color:var(--muted);font-family:'SF Mono',monospace">${COST_PARAMS.tarifa}</div>
+          <div style="font-size:7px;color:var(--dim);margin-top:1px">Valor global</div>
+        </div>
+      </div>
+
+      <div class="analysis-grid">`;
+    if(pw){
+      const pctNom=pw.kWnom?((pw.kW/pw.kWnom)*100):null;
+      const pwCol=pctNom?(pctNom>105?'var(--red)':pctNom<70?'var(--yellow)':'var(--green)'):'var(--cyan)';
+      html+=`<div class="analysis-item"><div class="analysis-label">Potência Atual</div><div class="analysis-value mono" style="color:${pwCol}">${pw.kW.toFixed(1)} kW</div><div class="analysis-sub">I=${pw.I.toFixed(1)}A · V=${pw.V}V · FP=${pw.FP}</div></div>`;
+      if(pw.kWnom) html+=`<div class="analysis-item"><div class="analysis-label">Potência Nominal</div><div class="analysis-value mono" style="color:var(--accent)">${pw.kWnom.toFixed(1)} kW</div><div class="analysis-sub">I_nom=${e.nominal.corrente}A</div></div>`;
+      if(pctNom) html+=`<div class="analysis-item"><div class="analysis-label">Carga</div><div class="analysis-value mono" style="color:${pwCol}">${pctNom.toFixed(1)}%</div><div class="analysis-sub">${pctNom>105?'Sobrecarga':pctNom<70?'Subcarregado':'Faixa normal'}</div></div>`;
+      html+=`<div class="analysis-item"><div class="analysis-label">Custo Total / hora</div><div class="analysis-value mono" style="color:var(--orange)">R$ ${(pw.kW*COST_PARAMS.tarifa).toFixed(2)}</div><div class="analysis-sub">Consumo real × ${COST_PARAMS.tarifa} R$/kWh</div></div>`;
+    }
+    if(custoEq&&custoEq.rsHora>0){
+      const deltaKw=custoEq.kwPerdido||0;
+      html+=`<div class="analysis-item" style="border-top:1px dashed var(--border);padding-top:8px"><div class="analysis-label">Desvio do Nominal</div><div class="analysis-value mono" style="color:var(--red)">${deltaKw>0?deltaKw.toFixed(1)+' kW':'—'}</div><div class="analysis-sub">${esc(custoEq.obs||'')}</div></div>`;
+      html+=`<div class="analysis-item" style="border-top:1px dashed var(--border);padding-top:8px"><div class="analysis-label">Custo Desvio / hora</div><div class="analysis-value mono" style="color:var(--red)">${fmtRs(custoEq.rsHora)}</div><div class="analysis-sub">Só a parcela fora do nominal</div></div>`;
+      html+=`<div class="analysis-item" style="border-top:1px dashed var(--border);padding-top:8px"><div class="analysis-label">Custo Desvio / mês</div><div class="analysis-value mono" style="color:var(--yellow)">${fmtRs(custoEq.rsMes)}</div><div class="analysis-sub">${COST_PARAMS.horasDia}h/dia × 30 dias</div></div>`;
+    }
+    html+=`</div>`;
+    if(pw) html+=`<div style="margin-top:8px;font-size:9px;color:var(--dim)">P = √3 × ${pw.V}V × ${pw.I.toFixed(1)}A × ${pw.FP} ÷ 1000 = ${pw.kW.toFixed(2)} kW${pw.isCustom?' (params individuais)':' (params globais)'}</div>`;
+    html+=`</div>`;
+  }
+
+  // Curva da Banheira
+  const bathtub=computeBathtubCurve(id);
+  if(bathtub){
+    const faseAtual=bathtub.idadeEstimada<bathtub.vida_ajustada*0.1?'Mortalidade Infantil':bathtub.idadeEstimada>bathtub.vida_ajustada*0.75?'Zona de Desgaste':'Vida Útil (aleatório)';
+    const faseCol=bathtub.idadeEstimada<bathtub.vida_ajustada*0.1?'var(--orange)':bathtub.idadeEstimada>bathtub.vida_ajustada*0.75?'var(--red)':'var(--green)';
+    const margemAnos=Math.max(0,bathtub.vida_ajustada-bathtub.idadeEstimada);
+    html+=`<div class="analysis-box" style="border-left:3px solid var(--purple);background:rgba(139,92,246,0.04)">
+      <div style="font-size:11px;font-weight:600;color:var(--purple);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">🛁 Curva da Banheira — Confiabilidade</div>
+      <div style="margin-bottom:10px">${buildBathtubSVG(bathtub)}</div>
+      <div class="analysis-grid" style="grid-template-columns:repeat(5,1fr)">
+        <div class="analysis-item"><div class="analysis-label">Fase</div><div class="analysis-value" style="color:${faseCol};font-size:12px;font-weight:700">${faseAtual}</div></div>
+        <div class="analysis-item"><div class="analysis-label">Vida ajustada</div><div class="analysis-value mono" style="color:var(--accent)">${bathtub.vida_ajustada.toFixed(1)}a</div></div>
+        <div class="analysis-item"><div class="analysis-label">Margem</div><div class="analysis-value mono" style="color:${margemAnos<2?'var(--red)':margemAnos<5?'var(--yellow)':'var(--green)'}">${margemAnos.toFixed(1)}a</div></div>
+        <div class="analysis-item"><div class="analysis-label">Carga</div><div class="analysis-value mono">${(bathtub.carga*100).toFixed(0)}%</div></div>
+        <div class="analysis-item"><div class="analysis-label">Severidade</div><div class="analysis-value mono" style="color:${bathtub.severidade>1.5?'var(--red)':bathtub.severidade>1?'var(--yellow)':'var(--green)'}">${bathtub.severidade.toFixed(2)}×</div></div>
+      </div>
+      <div style="margin-top:8px;font-size:9px;color:var(--dim)">
+        Weibull (β<sub>w</sub>=${WEIBULL_PARAMS[bathtub.tipo]?.beta_wear||'?'}) + Arrhenius (AF=${bathtub.AF.toFixed(2)}) · CV=${bathtub.cv.toFixed(0)}% · Severidade = AF × carga^1.5 × CV factor · Estimativa sem dados de falha reais
       </div>
     </div>`;
   }
